@@ -1,140 +1,235 @@
-// TODO: This can be unit tested, so do it.
+// TODO: Add more unit tests (it's already good, but there may be a few more critical corner cases.)
 
-use std::{cell::RefCell, rc::Rc};
-
-use crate::constants::MouseClickKind;
+use std::{
+  collections::HashMap,
+  ops::{Index, IndexMut},
+};
 
 // TODO: Not sure if this is an automata, or just a Trie? or a tree??
+//       Even if it's just a trie, it should still be called automata, because I don't want the user to
+//       know the implementation details, also it might change in the future (besides, it does have other
+//       things like "reset instructions" or whatever)
 // TODO: I noticed that with this sequence ..........- I should be able to press many short clicks
 //       before I press the long one, and it should work. But it seems that the automata is traversing
 //       and getting to "not found" instead if I press too many times. I think there's something
 //       fundamentally wrong here.
 
-struct Node {
-  result_id: Vec<usize>,
-  children: [Option<Rc<RefCell<Node>>>; 2],
+// TODO: A better way to implement all of this is by having the following enum.
+//       { Char(ch), Reset }. So char instructions are always containing letters, and other non-char
+//       instructions are defined separately. That way I also avoid the Index/IndexMut shitshow.
+
+#[derive(Copy, Clone)]
+pub enum AutomataInstruction {
+  Zero,
+  One,
+  Reset,
 }
 
-impl Node {
-  fn new() -> Self {
-    Self {
-      result_id: vec![],
-      children: [None, None],
+impl Index<&AutomataInstruction> for Vec<Option<usize>> {
+  type Output = Option<usize>;
+
+  fn index(&self, index: &AutomataInstruction) -> &Self::Output {
+    match index {
+      AutomataInstruction::Zero => &self[0],
+      AutomataInstruction::One => &self[1],
+      AutomataInstruction::Reset => &self[usize::MAX],
     }
   }
+}
 
-  pub fn has_children(&self) -> bool {
-    self.children[0].is_some() || self.children[1].is_some()
+impl IndexMut<&AutomataInstruction> for Vec<Option<usize>> {
+  fn index_mut(&mut self, index: &AutomataInstruction) -> &mut Self::Output {
+    match index {
+      AutomataInstruction::Zero => &mut self[0],
+      AutomataInstruction::One => &mut self[1],
+      AutomataInstruction::Reset => &mut self[usize::MAX],
+    }
   }
 }
 
 pub struct SequenceAutomata {
-  main_node: Rc<RefCell<Node>>,
-  curr_node: Rc<RefCell<Node>>,
+  curr_node: usize,
+  failed: bool,
+  graph: Vec<Vec<Option<usize>>>,
+  results: HashMap<usize, Vec<usize>>,
 }
 
 impl SequenceAutomata {
-  pub fn new() -> Self {
-    let main_node = Rc::new(RefCell::new(Node::new()));
+  pub fn new(sequences: &[Vec<AutomataInstruction>]) -> Self {
+    let mut result = SequenceAutomata {
+      curr_node: 0,
+      failed: false,
+      graph: vec![],
+      results: HashMap::new(),
+    };
 
-    Self {
-      main_node: Rc::clone(&main_node),
-      curr_node: Rc::clone(&main_node),
+    // TODO: Does it work without this?
+    result.add_node();
+
+    for (i, seq) in sequences.iter().enumerate() {
+      result.add_sequence(seq, i)
     }
+
+    result
   }
 
-  fn reset_sequence(&mut self) {
-    self.curr_node = Rc::clone(&self.main_node);
+  fn reset(&mut self) {
+    self.curr_node = 0;
+    self.failed = false;
+  }
+
+  fn add_node(&mut self) -> usize {
+    let idx = self.graph.len();
+    self.graph.push(vec![None, None]);
+    idx
   }
 
   // TODO: Note: this executes everytime I click the mouse! So the result shouldn't be a vector because that allocs a vector in the heap,
   //       which is relatively expensive. So wrap it in an Option to avoid that.
   //       UPDATE: DONE, but verify.
   // TODO: Name "execute_input" is a bit weird, since it's not just mouse inputs, but instructions of other kinds as well.
-  pub fn execute_input(&mut self, click_kind: MouseClickKind) -> Option<Vec<usize>> {
-    match click_kind {
-      MouseClickKind::Reset => {
-        self.reset_sequence();
-        return None;
-      }
-      _ => {}
-    }
-
-    if !self.curr_node.borrow().has_children() {
-      self.reset_sequence();
-      // TODO: Warning, this can cause infinite recursion.
-      //       It will cause it if there's no nodes.
-      //       Implement differently please.
-      self.execute_input(click_kind);
+  pub fn execute_input(&mut self, instruction: AutomataInstruction) -> Option<Vec<usize>> {
+    // TODO: Maybe I could return a reference to a vector (without being inside Option). That's the cheapest
+    //       way to do it I think. And being empty means None, so there's no problem checking if there were results or not.
+    if let AutomataInstruction::Reset = instruction {
+      self.reset();
       return None;
     }
 
-    // TODO: This is a bit ugly.
-    let child_idx = match click_kind {
-      MouseClickKind::Short => 0,
-      _ => 1,
-    };
+    if self.failed {
+      return None;
+    }
 
-    let mut next_curr: Option<Rc<RefCell<Node>>> = None;
-    let mut found = false;
-
-    {
-      let curr_node_ref = self.curr_node.borrow();
-      let children = &curr_node_ref.children;
-      let next_child = &children[child_idx];
-
-      match next_child {
-        Some(child) => {
-          found = true;
-          next_curr = Some(Rc::clone(child));
-        }
-        None => {}
+    match self.graph[self.curr_node][&instruction] {
+      Some(child) => {
+        self.curr_node = child;
+      }
+      None => {
+        self.failed = true;
+        return None;
       }
     }
 
-    if found {
-      // TODO: (all of this) is bad
-      self.curr_node = next_curr.unwrap();
-      // TODO: For now "clone", but is there a better way?
-      return Some(self.curr_node.borrow().result_id.clone());
+    match self.results.get(&self.curr_node) {
+      Some(results) => {
+        let res = results.clone();
+        self.reset();
+        Some(res)
+      }
+      None => None,
     }
 
-    // TODO: This is printed more than expected. Maybe it's bugged.
-    println!("Not found");
-    self.reset_sequence();
-    None
+    // TODO: The sequence must be resetted when it finds a result.
+
+    // TODO: For now "clone", but is there a better way?
+    //       Try to return the reference. That's the cheapest way to do it. No cloning, no
+    //       algorithms larger than O(1). Just a few arithmetic and memory operations.
+    //       The last ".map(|x| x.clone())" I added should be gone, and just return the &.
+    // return self.results.get(&self.curr_node).map(|x| x.clone());
   }
 
-  pub fn add_sequence(&mut self, sequence: Vec<MouseClickKind>, id: usize) {
-    let mut curr: Rc<RefCell<Node>> = Rc::clone(&self.main_node);
+  fn add_sequence(&mut self, sequence: &Vec<AutomataInstruction>, id: usize) {
+    let mut curr = 0;
 
-    for item in sequence {
-      // TODO: A bit ugly.
-      let child_idx = match item {
-        MouseClickKind::Short => 0,
-        _ => 1,
-      };
-
-      RefCell::borrow_mut(&curr).children[child_idx]
-        .get_or_insert_with(|| Rc::new(RefCell::new(Node::new())));
-
-      // TODO: What a shit show.
-      let mut next_curr: Option<Rc<RefCell<Node>>> = None;
-
-      {
-        let curr_ref = curr.borrow();
-        let children = &curr_ref.children;
-
-        let next_child = &children[child_idx];
-
-        if let Some(child) = next_child {
-          next_curr = Some(Rc::clone(&child));
-        }
+    for instruction in sequence {
+      if self.graph[curr][instruction].is_none() {
+        self.graph[curr][instruction] = Some(self.add_node());
       }
 
-      curr = next_curr.unwrap();
+      curr = self.graph[curr][instruction].unwrap();
     }
 
-    RefCell::borrow_mut(&curr).result_id.push(id);
+    self.results.entry(curr).or_default().push(id);
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn char_to_instruction(c: char) -> AutomataInstruction {
+    match c {
+      '0' => AutomataInstruction::Zero,
+      '1' => AutomataInstruction::One,
+      'r' => AutomataInstruction::Reset,
+      _ => panic!("Wrong instruction value"),
+    }
+  }
+
+  fn build_automata(binary_strings: Vec<&str>) -> SequenceAutomata {
+    let sequences: Vec<Vec<AutomataInstruction>> = binary_strings
+      .iter()
+      .map(|s| s.chars().map(char_to_instruction).collect())
+      .collect();
+
+    SequenceAutomata::new(&sequences)
+  }
+
+  fn check_results(
+    automata: &mut SequenceAutomata,
+    sequence: &str,
+    results: &[Option<Vec<usize>>],
+  ) {
+    assert_eq!(sequence.len(), results.len());
+    let instructions: Vec<AutomataInstruction> =
+      sequence.chars().map(char_to_instruction).collect();
+    for i in 0..sequence.len() {
+      let result = automata.execute_input(instructions[i]);
+      assert_eq!(result, results[i]);
+    }
+  }
+
+  #[test]
+  #[should_panic]
+  fn test_access_wrong_index() {
+    let vec: Vec<Option<usize>> = vec![None, None, None, None];
+    vec[&AutomataInstruction::Reset];
+  }
+
+  #[test]
+  fn test_sequence_1() {
+    let mut automata = build_automata(vec!["0101"]);
+    check_results(&mut automata, "0101", &[None, None, None, Some(vec![0])]);
+  }
+
+  #[test]
+  fn test_sequence_match_multiple_simultaneously() {
+    let mut automata = build_automata(vec!["0101", "0111", "0101"]);
+    check_results(&mut automata, "0101", &[None, None, None, Some(vec![0, 2])]);
+  }
+
+  #[test]
+  fn test_sequence_match_twice_in_a_row() {
+    let mut automata = build_automata(vec!["0101"]);
+    check_results(
+      &mut automata,
+      "01010101",
+      &[
+        None,
+        None,
+        None,
+        Some(vec![0]),
+        None,
+        None,
+        None,
+        Some(vec![0]),
+      ],
+    );
+  }
+
+  #[test]
+  fn test_must_be_resetted_otherwise_wont_match() {
+    let mut automata = build_automata(vec!["011"]);
+    check_results(
+      &mut automata,
+      "0011r011",
+      &[None, None, None, None, None, None, None, Some(vec![0])],
+    );
+  }
+
+  #[test]
+  fn test_sequence_becomes_unreachable() {
+    let mut automata = build_automata(vec!["0111", "011"]);
+    check_results(&mut automata, "0111", &[None, None, Some(vec![1]), None]);
   }
 }

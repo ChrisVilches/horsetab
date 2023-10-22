@@ -1,5 +1,3 @@
-// TODO: I hope I can do things without using too much "clone"
-
 use cmd_parser::Cmd;
 use main_threads::{
   automata_manager::manage_automata, commands_installer::commands_install,
@@ -10,7 +8,6 @@ use std::sync::{atomic::AtomicBool, Mutex};
 mod click_length_detector;
 mod cmd;
 mod cmd_parser;
-mod constants;
 mod logger;
 mod main_threads;
 mod sequence_automata;

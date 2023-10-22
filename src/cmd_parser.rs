@@ -1,13 +1,13 @@
-use crate::constants::MouseClickKind;
+use crate::sequence_automata::AutomataInstruction;
 
-fn parse_sequence(seq: &str) -> Vec<MouseClickKind> {
+fn parse_sequence(seq: &str) -> Vec<AutomataInstruction> {
   seq
     .chars()
     .map(|c| {
       if c == '.' {
-        MouseClickKind::Short
+        AutomataInstruction::Zero
       } else if c == '-' {
-        MouseClickKind::Long
+        AutomataInstruction::One
       } else {
         panic!("LOL... how to do this properly???? Maybe return a Result with error??")
       }
@@ -16,14 +16,14 @@ fn parse_sequence(seq: &str) -> Vec<MouseClickKind> {
 }
 
 pub struct Cmd {
-  pub sequence: Vec<MouseClickKind>,
+  pub sequence: Vec<AutomataInstruction>,
   pub command: String,
 }
 
 impl Cmd {
-  fn new(sequence: Vec<MouseClickKind>, command: &str) -> Self {
+  fn new(sequence: Vec<AutomataInstruction>, command: &str) -> Self {
     Self {
-      sequence: sequence,
+      sequence,
       command: command.into(),
     }
   }
@@ -36,7 +36,7 @@ pub fn parse_cmd(line: &str) -> Option<Cmd> {
     return None;
   }
 
-  let first_space = line.find(" ").expect("Should contain at least one space");
+  let first_space = line.find(' ').expect("Should contain at least one space");
   let (seq, cmd) = line.split_at(first_space);
 
   Some(Cmd::new(parse_sequence(seq), cmd.trim()))

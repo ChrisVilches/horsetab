@@ -1,9 +1,14 @@
 use std::time::Instant;
 
-use crate::constants::MouseClickKind;
-
 // TODO: It's not just a length detector anymore. It does more than that, so update the name
 //       so it's a bit more generic. It also detects time between inputs (previous and current).
+//       I think it doesn't do that anymore.
+
+#[derive(Copy, Clone)]
+pub enum MouseClickKind {
+  Short,
+  Long,
+}
 
 pub struct ClickLengthDetector {
   timestamp: Instant,
@@ -14,7 +19,7 @@ impl ClickLengthDetector {
   pub fn new(long_ms: u128) -> Self {
     Self {
       timestamp: Instant::now(),
-      long_ms: long_ms,
+      long_ms,
     }
   }
 

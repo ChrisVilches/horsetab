@@ -14,12 +14,13 @@ pub fn read_commands(file_path: &str) -> Result<Vec<Cmd>, Box<dyn Error>> {
   let file = File::open(file_path)?;
   let reader = BufReader::new(file);
 
+  // TODO: I don't know if this silences errors (with the filter_map).
+  //       But anyway I have to test the failure more extensively later.
   Ok(
     reader
       .lines()
       .flatten()
-      .map(|l| parse_cmd(&l))
-      .flatten()
+      .filter_map(|l| parse_cmd(&l))
       .collect(),
   )
 }

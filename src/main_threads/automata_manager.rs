@@ -5,7 +5,10 @@ use std::sync::{
 
 use crossbeam::channel::{Receiver, Sender};
 
-use crate::{cmd_parser::Cmd, constants::MouseClickKind, sequence_automata::SequenceAutomata};
+use crate::{
+  cmd_parser::Cmd,
+  sequence_automata::{AutomataInstruction, SequenceAutomata},
+};
 
 fn rebuild_automata(
   automata: &mut SequenceAutomata,
@@ -18,9 +21,9 @@ fn rebuild_automata(
 
   println!("Installing {} commands", commands.len());
 
-  for (i, cmd) in commands.iter().enumerate() {
-    automata.add_sequence(cmd.sequence.clone(), i);
-  }
+  let sequences: Vec<Vec<AutomataInstruction>> =
+    commands.iter().map(|c| c.sequence.clone()).collect();
+  *automata = SequenceAutomata::new(&sequences);
 
   commands_changed.store(false, Ordering::Relaxed);
 }
@@ -28,15 +31,15 @@ fn rebuild_automata(
 pub fn manage_automata(
   commands: &Mutex<Vec<Cmd>>,
   results_sender: Sender<usize>,
-  sequence_rec: Receiver<MouseClickKind>,
+  sequence_rec: Receiver<AutomataInstruction>,
   commands_changed: &AtomicBool,
 ) {
-  let mut automata = SequenceAutomata::new();
+  let mut automata = SequenceAutomata::new(&[vec![]]);
 
   while let Ok(mouse_click_kind) = sequence_rec.recv() {
     rebuild_automata(
       &mut automata,
-      &commands_changed,
+      commands_changed,
       commands.lock().expect("Should obtain lock"),
     );
 

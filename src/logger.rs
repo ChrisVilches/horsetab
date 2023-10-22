@@ -12,10 +12,7 @@ fn get_failure_status_code(status: ExitStatus) -> Option<i32> {
     return None;
   }
 
-  match status.code() {
-    Some(code) => Some(code),
-    None => None,
-  }
+  status.code()
 }
 
 fn build_log_header(cmd: &str, date_time: DateTime<Utc>) -> String {
