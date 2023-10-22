@@ -15,7 +15,8 @@ use main_threads::{
   automata_manager::manage_automata, commands_installer::commands_install,
   mouse_events::mouse_handler, results_command_exec::listen_results_execute_command,
 };
-use std::sync::{atomic::AtomicBool, Mutex};
+use sequence_automata::SequenceAutomata;
+use std::sync::Mutex;
 
 mod click_sequence_detector;
 mod cmd;
@@ -30,13 +31,13 @@ fn main() {
 
   let commands = Mutex::new(Vec::<Cmd>::new());
 
-  let commands_changed = AtomicBool::new(false);
+  let automata = Mutex::new(SequenceAutomata::new(&[""]));
 
   crossbeam::scope(|scope| {
     scope.spawn(|_| listen_results_execute_command(&commands, &results_rec));
-    scope.spawn(|_| manage_automata(&commands, &results_sender, &sequence_rec, &commands_changed));
+    scope.spawn(|_| manage_automata(&automata, &results_sender, &sequence_rec));
     scope.spawn(|_| mouse_handler(sequence_sender));
-    scope.spawn(|_| commands_install(&commands, &commands_changed));
+    scope.spawn(|_| commands_install(&automata, &commands));
   })
   .expect("Should run all threads");
 }
