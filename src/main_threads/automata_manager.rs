@@ -13,7 +13,7 @@ use crate::{
 fn rebuild_automata(
   automata: &mut SequenceAutomata,
   commands_changed: &AtomicBool,
-  commands: MutexGuard<Vec<Cmd>>,
+  commands: &MutexGuard<Vec<Cmd>>,
 ) {
   if !commands_changed.load(Ordering::Relaxed) {
     return;
@@ -32,8 +32,8 @@ fn rebuild_automata(
 
 pub fn manage_automata(
   commands: &Mutex<Vec<Cmd>>,
-  results_sender: Sender<usize>,
-  sequence_rec: Receiver<AutomataInstruction>,
+  results_sender: &Sender<usize>,
+  sequence_rec: &Receiver<AutomataInstruction>,
   commands_changed: &AtomicBool,
 ) {
   let mut automata = SequenceAutomata::new(&[""]);
@@ -42,7 +42,7 @@ pub fn manage_automata(
     rebuild_automata(
       &mut automata,
       commands_changed,
-      commands.lock().expect("Should obtain lock"),
+      &commands.lock().expect("Should obtain lock"),
     );
 
     if let Some(results) = automata.put(mouse_click_kind) {

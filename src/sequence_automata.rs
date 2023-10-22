@@ -15,7 +15,7 @@ pub struct SequenceAutomata {
 
 impl SequenceAutomata {
   pub fn new(sequences: &[&str]) -> Self {
-    let mut result = SequenceAutomata {
+    let mut result = Self {
       curr_node: 0,
       failed: false,
       graph: vec![],
@@ -25,7 +25,7 @@ impl SequenceAutomata {
     result.add_node();
 
     for (i, seq) in sequences.iter().enumerate() {
-      result.add_sequence(seq, i)
+      result.add_sequence(seq, i);
     }
 
     result
@@ -58,16 +58,15 @@ impl SequenceAutomata {
 
   pub fn put(&mut self, instruction: AutomataInstruction) -> Option<Vec<usize>> {
     match instruction {
-      AutomataInstruction::Char(c) => match self.graph[self.curr_node].get(&c) {
-        Some(child) => {
+      AutomataInstruction::Char(c) => {
+        if let Some(child) = self.graph[self.curr_node].get(&c) {
           self.curr_node = *child;
           self.get_current_results()
-        }
-        None => {
+        } else {
           self.failed = true;
           None
         }
-      },
+      }
       AutomataInstruction::Reset => {
         self.reset();
         None
@@ -79,8 +78,7 @@ impl SequenceAutomata {
     let mut curr = 0;
 
     for c in sequence.chars() {
-      // TODO: Clippy complains, but the code given is wrong lol.
-
+      #[allow(clippy::map_entry)]
       if !self.graph[curr].contains_key(&c) {
         let v = self.add_node();
         self.graph[curr].insert(c, v);

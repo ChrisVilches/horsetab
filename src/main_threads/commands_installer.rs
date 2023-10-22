@@ -13,6 +13,7 @@ pub fn commands_install(commands: &Mutex<Vec<Cmd>>, commands_changed: &AtomicBoo
 
   let mut guard = commands.lock().expect("Should obtain lock");
   *guard = read_commands(config_file_path).expect("Should be able to read commands");
+  drop(guard);
 
   commands_changed.store(true, Ordering::Relaxed);
 }

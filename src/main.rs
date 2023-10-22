@@ -13,7 +13,7 @@
 use cmd_parser::Cmd;
 use main_threads::{
   automata_manager::manage_automata, commands_installer::commands_install,
-  mouse_events::listen_mouse_events, results_command_exec::listen_results_command_exec,
+  mouse_events::mouse_handler, results_command_exec::listen_results_execute_command,
 };
 use std::sync::{atomic::AtomicBool, Mutex};
 
@@ -33,9 +33,9 @@ fn main() {
   let commands_changed = AtomicBool::new(false);
 
   crossbeam::scope(|scope| {
-    scope.spawn(|_| listen_results_command_exec(&commands, results_rec));
-    scope.spawn(|_| manage_automata(&commands, results_sender, sequence_rec, &commands_changed));
-    scope.spawn(|_| listen_mouse_events(sequence_sender));
+    scope.spawn(|_| listen_results_execute_command(&commands, &results_rec));
+    scope.spawn(|_| manage_automata(&commands, &results_sender, &sequence_rec, &commands_changed));
+    scope.spawn(|_| mouse_handler(sequence_sender));
     scope.spawn(|_| commands_install(&commands, &commands_changed));
   })
   .expect("Should run all threads");

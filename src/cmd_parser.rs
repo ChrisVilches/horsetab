@@ -10,7 +10,7 @@ fn parse_sequence(seq: &str) -> Result<String> {
       '1'
     } else {
       bail!("Sequence is incorrect")
-    })
+    });
   }
 
   Ok(result)
@@ -30,8 +30,8 @@ impl Cmd {
   }
 }
 
-pub fn parse_cmd(line: &str) -> Result<Option<Cmd>> {
-  let line = line.trim();
+pub fn parse_cmd(text_line: &str) -> Result<Option<Cmd>> {
+  let line = text_line.trim();
 
   if line.is_empty() {
     return Ok(None);

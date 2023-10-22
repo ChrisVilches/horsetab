@@ -29,7 +29,7 @@ fn seconds_elapsed_since(date_time: DateTime<Local>) -> i64 {
   Utc::now().timestamp() - date_time.timestamp()
 }
 
-pub fn execute_cmd(cmd: &str) {
+pub fn spawn_process(cmd: &str) {
   let start_time = Local::now();
 
   let mut process = Command::new("bash")
