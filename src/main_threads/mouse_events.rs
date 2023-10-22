@@ -3,14 +3,14 @@ use device_query::{CallbackGuard, DeviceEvents, DeviceState};
 use std::sync::{Arc, Mutex};
 
 use crate::{
-  click_length_detector::{ClickLengthDetector, MouseClickKind},
+  click_sequence_detector::{ClickSequenceDetector, MouseClickKind},
   sequence_automata::AutomataInstruction,
 };
 
 fn listen_mouse_down(
   device: &DeviceState,
   seq_sender: Sender<AutomataInstruction>,
-  click_detector: Arc<Mutex<ClickLengthDetector>>,
+  click_detector: Arc<Mutex<ClickSequenceDetector>>,
 ) -> CallbackGuard<impl Fn(&usize)> {
   device.on_mouse_down(move |_| {
     let time_between_inputs = click_detector.lock().unwrap().click();
@@ -33,7 +33,7 @@ fn click_kind_to_instruction(click_kind: MouseClickKind) -> AutomataInstruction 
 fn listen_mouse_up(
   device: &DeviceState,
   seq_sender: Sender<AutomataInstruction>,
-  click_detector: Arc<Mutex<ClickLengthDetector>>,
+  click_detector: Arc<Mutex<ClickSequenceDetector>>,
 ) -> CallbackGuard<impl Fn(&usize)> {
   device.on_mouse_up(move |_| {
     let click_kind = click_detector.lock().unwrap().release();
@@ -45,7 +45,7 @@ fn listen_mouse_up(
 
 pub fn listen_mouse_events(seq_sender: Sender<AutomataInstruction>) {
   let device = DeviceState::new();
-  let click_detector = Arc::new(Mutex::new(ClickLengthDetector::new(200)));
+  let click_detector = Arc::new(Mutex::new(ClickSequenceDetector::new(200)));
 
   let _guard = listen_mouse_down(&device, seq_sender.clone(), Arc::clone(&click_detector));
   let _guard = listen_mouse_up(&device, seq_sender.clone(), Arc::clone(&click_detector));

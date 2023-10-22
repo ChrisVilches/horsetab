@@ -1,21 +1,17 @@
 use std::time::Instant;
 
-// TODO: It's not just a length detector anymore. It does more than that, so update the name
-//       so it's a bit more generic. It also detects time between inputs (previous and current).
-//       I think it doesn't do that anymore.
-
 #[derive(Copy, Clone)]
 pub enum MouseClickKind {
   Short,
   Long,
 }
 
-pub struct ClickLengthDetector {
+pub struct ClickSequenceDetector {
   timestamp: Instant,
   long_ms: u128,
 }
 
-impl ClickLengthDetector {
+impl ClickSequenceDetector {
   pub fn new(long_ms: u128) -> Self {
     Self {
       timestamp: Instant::now(),

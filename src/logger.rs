@@ -5,7 +5,7 @@ use std::{
   process::{ChildStderr, ChildStdout},
 };
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local};
 
 fn get_failure_status_code(status: ExitStatus) -> Option<i32> {
   if status.success() {
@@ -15,8 +15,7 @@ fn get_failure_status_code(status: ExitStatus) -> Option<i32> {
   status.code()
 }
 
-fn build_log_header(cmd: &str, date_time: DateTime<Utc>) -> String {
-  // TODO: Timezone is wrong.
+fn build_log_header(cmd: &str, date_time: DateTime<Local>) -> String {
   let date_fmt = date_time.format("%Y-%m-%d %H:%M:%S");
   format!("[{date_fmt}] {cmd}")
 }
@@ -34,7 +33,7 @@ fn log<W, R>(
   mut content: R,
   cmd: &str,
   status: ExitStatus,
-  start_time: DateTime<Utc>,
+  start_time: DateTime<Local>,
   elapsed_sec: i64,
 ) where
   R: Read,
@@ -52,7 +51,7 @@ pub fn log_stderr(
   content: ChildStderr,
   cmd: &str,
   status: ExitStatus,
-  start_time: DateTime<Utc>,
+  start_time: DateTime<Local>,
   elapsed_sec: i64,
 ) {
   let writer = io::stderr().lock();
@@ -63,7 +62,7 @@ pub fn log_stdout(
   content: ChildStdout,
   cmd: &str,
   status: ExitStatus,
-  start_time: DateTime<Utc>,
+  start_time: DateTime<Local>,
   elapsed_sec: i64,
 ) {
   let writer = io::stdout().lock();
