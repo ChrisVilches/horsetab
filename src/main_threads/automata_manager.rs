@@ -21,7 +21,10 @@ fn rebuild_automata(
 
   println!("Installing {} commands", commands.len());
 
-  let sequences: Vec<String> = commands.iter().map(|c| c.sequence.to_owned()).collect();
+  let sequences = commands
+    .iter()
+    .map(|c| c.sequence.as_ref())
+    .collect::<Vec<&str>>();
   *automata = SequenceAutomata::new(&sequences);
 
   commands_changed.store(false, Ordering::Relaxed);
@@ -33,7 +36,7 @@ pub fn manage_automata(
   sequence_rec: Receiver<AutomataInstruction>,
   commands_changed: &AtomicBool,
 ) {
-  let mut automata = SequenceAutomata::new(&["".to_owned()]);
+  let mut automata = SequenceAutomata::new(&[""]);
 
   while let Ok(mouse_click_kind) = sequence_rec.recv() {
     rebuild_automata(
@@ -42,7 +45,7 @@ pub fn manage_automata(
       commands.lock().expect("Should obtain lock"),
     );
 
-    if let Some(results) = automata.execute_input(mouse_click_kind) {
+    if let Some(results) = automata.put(mouse_click_kind) {
       for result_id in results {
         results_sender
           .send(result_id)

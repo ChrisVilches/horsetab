@@ -9,6 +9,7 @@ edition = "2021"
 device_query = "1.1.3"
 crossbeam = "0.8.2"
 chrono = "0.4.31"
+anyhow = "1.0.75"
 
 [dev-dependencies]
 test-case = "3.2.1"

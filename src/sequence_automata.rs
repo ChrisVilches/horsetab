@@ -1,19 +1,4 @@
-// TODO: Add more unit tests (it's already good, but there may be a few more critical corner cases.)
-
 use std::collections::HashMap;
-
-// TODO: Not sure if this is an automata, or just a Trie? or a tree??
-//       Even if it's just a trie, it should still be called automata, because I don't want the user to
-//       know the implementation details, also it might change in the future (besides, it does have other
-//       things like "reset instructions" or whatever)
-// TODO: I noticed that with this sequence ..........- I should be able to press many short clicks
-//       before I press the long one, and it should work. But it seems that the automata is traversing
-//       and getting to "not found" instead if I press too many times. I think there's something
-//       fundamentally wrong here.
-
-// TODO: A better way to implement all of this is by having the following enum.
-//       { Char(ch), Reset }. So char instructions are always containing letters, and other non-char
-//       instructions are defined separately. That way I also avoid the Index/IndexMut shitshow.
 
 #[derive(Copy, Clone)]
 pub enum AutomataInstruction {
@@ -29,8 +14,7 @@ pub struct SequenceAutomata {
 }
 
 impl SequenceAutomata {
-  // TODO: Can this be &str?
-  pub fn new(sequences: &[String]) -> Self {
+  pub fn new(sequences: &[&str]) -> Self {
     let mut result = SequenceAutomata {
       curr_node: 0,
       failed: false,
@@ -38,7 +22,6 @@ impl SequenceAutomata {
       results: HashMap::new(),
     };
 
-    // TODO: Does it work without this?
     result.add_node();
 
     for (i, seq) in sequences.iter().enumerate() {
@@ -64,25 +47,16 @@ impl SequenceAutomata {
       return None;
     }
 
-    match self.results.get(&self.curr_node) {
-      Some(results) => {
-        // TODO: This is fucking trash.
-        let res = results.clone();
-        self.reset();
-        Some(res)
-      }
-      None => None,
+    let result = self.results.get(&self.curr_node).map(Vec::clone);
+
+    if result.is_some() {
+      self.reset();
     }
+
+    result
   }
 
-  // TODO: Note: this executes everytime I click the mouse! So the result shouldn't be a vector because that allocs a vector in the heap,
-  //       which is relatively expensive. So wrap it in an Option to avoid that.
-  //       UPDATE: DONE, but verify.
-  // TODO: Name "execute_input" is a bit weird, since it's not just mouse inputs, but instructions of other kinds as well.
-  pub fn execute_input(&mut self, instruction: AutomataInstruction) -> Option<Vec<usize>> {
-    // TODO: Maybe I could return a reference to a vector (without being inside Option). That's the cheapest
-    //       way to do it I think. And being empty means None, so there's no problem checking if there were results or not.
-
+  pub fn put(&mut self, instruction: AutomataInstruction) -> Option<Vec<usize>> {
     match instruction {
       AutomataInstruction::Char(c) => match self.graph[self.curr_node].get(&c) {
         Some(child) => {
@@ -99,14 +73,6 @@ impl SequenceAutomata {
         None
       }
     }
-
-    // TODO: The sequence must be resetted when it finds a result.
-
-    // TODO: For now "clone", but is there a better way?
-    //       Try to return the reference. That's the cheapest way to do it. No cloning, no
-    //       algorithms larger than O(1). Just a few arithmetic and memory operations.
-    //       The last ".map(|x| x.clone())" I added should be gone, and just return the &.
-    // return self.results.get(&self.curr_node).map(|x| x.clone());
   }
 
   fn add_sequence(&mut self, sequence: &str, id: usize) {
@@ -114,6 +80,7 @@ impl SequenceAutomata {
 
     for c in sequence.chars() {
       // TODO: Clippy complains, but the code given is wrong lol.
+
       if !self.graph[curr].contains_key(&c) {
         let v = self.add_node();
         self.graph[curr].insert(c, v);
@@ -132,23 +99,13 @@ mod tests {
 
   fn char_to_instruction(c: char) -> AutomataInstruction {
     match c {
-      '0' => AutomataInstruction::Char('0'),
-      '1' => AutomataInstruction::Char('1'),
-      'r' => AutomataInstruction::Reset,
-      _ => panic!("Wrong instruction value"),
+      'R' => AutomataInstruction::Reset,
+      _ => AutomataInstruction::Char(c),
     }
   }
 
   fn build_automata(binary_strings: &[&str]) -> SequenceAutomata {
-    // TODO: WTF is this.
-    let a: Vec<String> = binary_strings
-      .iter()
-      .map(|s| s.to_owned())
-      .map(|c| c)
-      .map(|s| s.to_owned())
-      .collect();
-
-    SequenceAutomata::new(&a)
+    SequenceAutomata::new(binary_strings)
   }
 
   fn check_results(
@@ -160,7 +117,7 @@ mod tests {
     let instructions: Vec<AutomataInstruction> =
       sequence.chars().map(char_to_instruction).collect();
     for i in 0..sequence.len() {
-      let result = automata.execute_input(instructions[i]);
+      let result = automata.put(instructions[i]);
       assert_eq!(result, results[i]);
     }
   }
@@ -169,6 +126,16 @@ mod tests {
   fn test_sequence_1() {
     let mut automata = build_automata(&["0101"]);
     check_results(&mut automata, "0101", &[None, None, None, Some(vec![0])]);
+  }
+
+  #[test]
+  fn test_sequence_2() {
+    let mut automata = build_automata(&["10", "1", "abc"]);
+    check_results(
+      &mut automata,
+      "01Rabc",
+      &[None, None, None, None, None, Some(vec![2])],
+    );
   }
 
   #[test]
@@ -201,7 +168,7 @@ mod tests {
     let mut automata = build_automata(&["011"]);
     check_results(
       &mut automata,
-      "0011r011",
+      "0011R011",
       &[None, None, None, None, None, None, None, Some(vec![0])],
     );
   }
