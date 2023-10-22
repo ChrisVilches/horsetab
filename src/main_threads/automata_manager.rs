@@ -21,8 +21,7 @@ fn rebuild_automata(
 
   println!("Installing {} commands", commands.len());
 
-  let sequences: Vec<Vec<AutomataInstruction>> =
-    commands.iter().map(|c| c.sequence.clone()).collect();
+  let sequences: Vec<String> = commands.iter().map(|c| c.sequence.to_owned()).collect();
   *automata = SequenceAutomata::new(&sequences);
 
   commands_changed.store(false, Ordering::Relaxed);
@@ -34,7 +33,7 @@ pub fn manage_automata(
   sequence_rec: Receiver<AutomataInstruction>,
   commands_changed: &AtomicBool,
 ) {
-  let mut automata = SequenceAutomata::new(&[vec![]]);
+  let mut automata = SequenceAutomata::new(&["".to_owned()]);
 
   while let Ok(mouse_click_kind) = sequence_rec.recv() {
     rebuild_automata(

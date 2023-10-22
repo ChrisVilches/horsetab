@@ -1,13 +1,11 @@
-use crate::sequence_automata::AutomataInstruction;
-
-fn parse_sequence(seq: &str) -> Vec<AutomataInstruction> {
+fn parse_sequence(seq: &str) -> String {
   seq
     .chars()
     .map(|c| {
       if c == '.' {
-        AutomataInstruction::Zero
+        '0'
       } else if c == '-' {
-        AutomataInstruction::One
+        '1'
       } else {
         panic!("LOL... how to do this properly???? Maybe return a Result with error??")
       }
@@ -16,14 +14,14 @@ fn parse_sequence(seq: &str) -> Vec<AutomataInstruction> {
 }
 
 pub struct Cmd {
-  pub sequence: Vec<AutomataInstruction>,
+  pub sequence: String,
   pub command: String,
 }
 
 impl Cmd {
-  fn new(sequence: Vec<AutomataInstruction>, command: &str) -> Self {
+  fn new(sequence: &str, command: &str) -> Self {
     Self {
-      sequence,
+      sequence: sequence.into(),
       command: command.into(),
     }
   }
@@ -39,5 +37,5 @@ pub fn parse_cmd(line: &str) -> Option<Cmd> {
   let first_space = line.find(' ').expect("Should contain at least one space");
   let (seq, cmd) = line.split_at(first_space);
 
-  Some(Cmd::new(parse_sequence(seq), cmd.trim()))
+  Some(Cmd::new(&parse_sequence(seq), cmd.trim()))
 }

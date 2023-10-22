@@ -1,9 +1,6 @@
 // TODO: Add more unit tests (it's already good, but there may be a few more critical corner cases.)
 
-use std::{
-  collections::HashMap,
-  ops::{Index, IndexMut},
-};
+use std::collections::HashMap;
 
 // TODO: Not sure if this is an automata, or just a Trie? or a tree??
 //       Even if it's just a trie, it should still be called automata, because I don't want the user to
@@ -20,42 +17,20 @@ use std::{
 
 #[derive(Copy, Clone)]
 pub enum AutomataInstruction {
-  Zero,
-  One,
+  Char(char),
   Reset,
-}
-
-impl Index<&AutomataInstruction> for Vec<Option<usize>> {
-  type Output = Option<usize>;
-
-  fn index(&self, index: &AutomataInstruction) -> &Self::Output {
-    match index {
-      AutomataInstruction::Zero => &self[0],
-      AutomataInstruction::One => &self[1],
-      AutomataInstruction::Reset => &self[usize::MAX],
-    }
-  }
-}
-
-impl IndexMut<&AutomataInstruction> for Vec<Option<usize>> {
-  fn index_mut(&mut self, index: &AutomataInstruction) -> &mut Self::Output {
-    match index {
-      AutomataInstruction::Zero => &mut self[0],
-      AutomataInstruction::One => &mut self[1],
-      AutomataInstruction::Reset => &mut self[usize::MAX],
-    }
-  }
 }
 
 pub struct SequenceAutomata {
   curr_node: usize,
   failed: bool,
-  graph: Vec<Vec<Option<usize>>>,
+  graph: Vec<HashMap<char, usize>>,
   results: HashMap<usize, Vec<usize>>,
 }
 
 impl SequenceAutomata {
-  pub fn new(sequences: &[Vec<AutomataInstruction>]) -> Self {
+  // TODO: Can this be &str?
+  pub fn new(sequences: &[String]) -> Self {
     let mut result = SequenceAutomata {
       curr_node: 0,
       failed: false,
@@ -80,8 +55,24 @@ impl SequenceAutomata {
 
   fn add_node(&mut self) -> usize {
     let idx = self.graph.len();
-    self.graph.push(vec![None, None]);
+    self.graph.push(HashMap::new());
     idx
+  }
+
+  fn get_current_results(&mut self) -> Option<Vec<usize>> {
+    if self.failed {
+      return None;
+    }
+
+    match self.results.get(&self.curr_node) {
+      Some(results) => {
+        // TODO: This is fucking trash.
+        let res = results.clone();
+        self.reset();
+        Some(res)
+      }
+      None => None,
+    }
   }
 
   // TODO: Note: this executes everytime I click the mouse! So the result shouldn't be a vector because that allocs a vector in the heap,
@@ -91,32 +82,22 @@ impl SequenceAutomata {
   pub fn execute_input(&mut self, instruction: AutomataInstruction) -> Option<Vec<usize>> {
     // TODO: Maybe I could return a reference to a vector (without being inside Option). That's the cheapest
     //       way to do it I think. And being empty means None, so there's no problem checking if there were results or not.
-    if let AutomataInstruction::Reset = instruction {
-      self.reset();
-      return None;
-    }
 
-    if self.failed {
-      return None;
-    }
-
-    match self.graph[self.curr_node][&instruction] {
-      Some(child) => {
-        self.curr_node = child;
-      }
-      None => {
-        self.failed = true;
-        return None;
-      }
-    }
-
-    match self.results.get(&self.curr_node) {
-      Some(results) => {
-        let res = results.clone();
+    match instruction {
+      AutomataInstruction::Char(c) => match self.graph[self.curr_node].get(&c) {
+        Some(child) => {
+          self.curr_node = *child;
+          self.get_current_results()
+        }
+        None => {
+          self.failed = true;
+          None
+        }
+      },
+      AutomataInstruction::Reset => {
         self.reset();
-        Some(res)
+        None
       }
-      None => None,
     }
 
     // TODO: The sequence must be resetted when it finds a result.
@@ -128,15 +109,17 @@ impl SequenceAutomata {
     // return self.results.get(&self.curr_node).map(|x| x.clone());
   }
 
-  fn add_sequence(&mut self, sequence: &Vec<AutomataInstruction>, id: usize) {
+  fn add_sequence(&mut self, sequence: &str, id: usize) {
     let mut curr = 0;
 
-    for instruction in sequence {
-      if self.graph[curr][instruction].is_none() {
-        self.graph[curr][instruction] = Some(self.add_node());
+    for c in sequence.chars() {
+      // TODO: Clippy complains, but the code given is wrong lol.
+      if !self.graph[curr].contains_key(&c) {
+        let v = self.add_node();
+        self.graph[curr].insert(c, v);
       }
 
-      curr = self.graph[curr][instruction].unwrap();
+      curr = *self.graph[curr].get(&c).unwrap();
     }
 
     self.results.entry(curr).or_default().push(id);
@@ -149,20 +132,23 @@ mod tests {
 
   fn char_to_instruction(c: char) -> AutomataInstruction {
     match c {
-      '0' => AutomataInstruction::Zero,
-      '1' => AutomataInstruction::One,
+      '0' => AutomataInstruction::Char('0'),
+      '1' => AutomataInstruction::Char('1'),
       'r' => AutomataInstruction::Reset,
       _ => panic!("Wrong instruction value"),
     }
   }
 
-  fn build_automata(binary_strings: Vec<&str>) -> SequenceAutomata {
-    let sequences: Vec<Vec<AutomataInstruction>> = binary_strings
+  fn build_automata(binary_strings: &[&str]) -> SequenceAutomata {
+    // TODO: WTF is this.
+    let a: Vec<String> = binary_strings
       .iter()
-      .map(|s| s.chars().map(char_to_instruction).collect())
+      .map(|s| s.to_owned())
+      .map(|c| c)
+      .map(|s| s.to_owned())
       .collect();
 
-    SequenceAutomata::new(&sequences)
+    SequenceAutomata::new(&a)
   }
 
   fn check_results(
@@ -180,27 +166,20 @@ mod tests {
   }
 
   #[test]
-  #[should_panic]
-  fn test_access_wrong_index() {
-    let vec: Vec<Option<usize>> = vec![None, None, None, None];
-    vec[&AutomataInstruction::Reset];
-  }
-
-  #[test]
   fn test_sequence_1() {
-    let mut automata = build_automata(vec!["0101"]);
+    let mut automata = build_automata(&["0101"]);
     check_results(&mut automata, "0101", &[None, None, None, Some(vec![0])]);
   }
 
   #[test]
   fn test_sequence_match_multiple_simultaneously() {
-    let mut automata = build_automata(vec!["0101", "0111", "0101"]);
+    let mut automata = build_automata(&["0101", "0111", "0101"]);
     check_results(&mut automata, "0101", &[None, None, None, Some(vec![0, 2])]);
   }
 
   #[test]
   fn test_sequence_match_twice_in_a_row() {
-    let mut automata = build_automata(vec!["0101"]);
+    let mut automata = build_automata(&["0101"]);
     check_results(
       &mut automata,
       "01010101",
@@ -219,7 +198,7 @@ mod tests {
 
   #[test]
   fn test_must_be_resetted_otherwise_wont_match() {
-    let mut automata = build_automata(vec!["011"]);
+    let mut automata = build_automata(&["011"]);
     check_results(
       &mut automata,
       "0011r011",
@@ -229,7 +208,7 @@ mod tests {
 
   #[test]
   fn test_sequence_becomes_unreachable() {
-    let mut automata = build_automata(vec!["0111", "011"]);
+    let mut automata = build_automata(&["0111", "011"]);
     check_results(&mut automata, "0111", &[None, None, Some(vec![1]), None]);
   }
 }
