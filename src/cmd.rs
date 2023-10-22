@@ -3,7 +3,7 @@ use crate::{
   logger::{log_stderr, log_stdout},
 };
 use anyhow::Result;
-use chrono::{DateTime, Local, Utc};
+use chrono::{DateTime, Local};
 use std::{
   fs::File,
   io::{BufRead, BufReader},
@@ -26,7 +26,7 @@ pub fn read_commands(file_path: &str) -> Result<Vec<Cmd>> {
 }
 
 fn seconds_elapsed_since(date_time: DateTime<Local>) -> i64 {
-  Utc::now().timestamp() - date_time.timestamp()
+  Local::now().timestamp() - date_time.timestamp()
 }
 
 pub fn spawn_process(cmd: &str) {
