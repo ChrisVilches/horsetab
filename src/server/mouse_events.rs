@@ -25,8 +25,8 @@ fn listen_mouse_down(
 
 const fn click_kind_to_instruction(click_kind: MouseClickKind) -> AutomataInstruction {
   match click_kind {
-    MouseClickKind::Short => AutomataInstruction::Char('0'),
-    MouseClickKind::Long => AutomataInstruction::Char('1'),
+    MouseClickKind::Short => AutomataInstruction::Char('.'),
+    MouseClickKind::Long => AutomataInstruction::Char('-'),
   }
 }
 

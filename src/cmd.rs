@@ -13,10 +13,13 @@ use std::{
 fn parse_lines(lines: Vec<std::io::Result<String>>) -> Result<Vec<Cmd>> {
   let commands = lines
     .into_iter()
-    .map(|line| parse_cmd(&line?))
-    .collect::<Result<Vec<Option<Cmd>>>>()?;
+    .map(|line| line.expect("Should be able to read lines"))
+    .map(|line| line.trim().to_owned())
+    .filter(|line| !line.is_empty())
+    .map(|line| parse_cmd(&line))
+    .collect::<Result<Vec<Cmd>>>()?;
 
-  Ok(commands.into_iter().flatten().collect())
+  Ok(commands.into_iter().collect())
 }
 
 pub fn read_commands(file_path: &str) -> Result<Vec<Cmd>> {
@@ -75,7 +78,7 @@ mod tests {
     assert!(cmd.is_err());
     assert_eq!(
       cmd.err().unwrap().to_string(),
-      "Line should contain at least one space"
+      "Some commands have incorrect format"
     );
   }
 
@@ -85,9 +88,9 @@ mod tests {
     assert!(result.is_ok());
     let cmd = result.unwrap();
     assert_eq!(cmd.len(), 3);
-    assert_eq!(cmd[0].sequence, "01");
-    assert_eq!(cmd[1].sequence, "0");
-    assert_eq!(cmd[2].sequence, "011");
+    assert_eq!(cmd[0].sequence, ".-");
+    assert_eq!(cmd[1].sequence, ".");
+    assert_eq!(cmd[2].sequence, ".--");
     assert_eq!(cmd[0].command, "x");
     assert_eq!(cmd[1].command, "xyz");
     assert_eq!(cmd[2].command, "yyy");

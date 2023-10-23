@@ -10,34 +10,79 @@
 #![deny(clippy::shadow_reuse)]
 #![deny(clippy::shadow_unrelated)]
 
-use cmd_parser::Cmd;
-use main_threads::{
-  automata_manager::manage_automata, commands_installer::commands_install,
-  mouse_events::mouse_handler, results_command_exec::listen_results_execute_command,
-};
-use sequence_automata::SequenceAutomata;
-use std::sync::Mutex;
-
 mod click_sequence_detector;
 mod cmd;
 mod cmd_parser;
 mod logger;
-mod main_threads;
 mod sequence_automata;
+mod server;
+use anyhow::Result;
+use clap::{Parser, Subcommand};
+use reqwest::StatusCode;
+
+#[derive(Subcommand)]
+enum Commands {
+  #[command(about = "Start server process")]
+  Serve {
+    #[arg(short, long)]
+    port: String,
+
+    #[arg(short, long)]
+    config_path: String,
+  },
+
+  #[command(about = "Edit commands")]
+  Edit {
+    #[arg(short, long)]
+    port: String,
+  },
+}
+
+#[derive(Parser)]
+#[command(author, version, about, long_about = None, arg_required_else_help = true)]
+struct Cli {
+  #[command(subcommand)]
+  command: Option<Commands>,
+}
+
+fn get_config_path_call(port: &str) -> Result<String> {
+  let res =
+    reqwest::blocking::get(format!("http://localhost:{port}/config-path"))?.error_for_status()?;
+  Ok(res.text()?)
+}
+
+fn reinstall_call(port: &str) -> Result<String> {
+  let client = reqwest::blocking::Client::new();
+  let res = client
+    .put(format!("http://localhost:{port}/re-install"))
+    .send()?;
+
+  match res.status() {
+    StatusCode::OK => Ok(res.text()?),
+    _ => Err(anyhow::anyhow!("{}", res.text()?)),
+  }
+}
 
 fn main() {
-  let (sequence_sender, sequence_rec) = crossbeam::channel::unbounded();
-  let (results_sender, results_rec) = crossbeam::channel::unbounded::<usize>();
+  let cli = Cli::parse();
 
-  let commands = Mutex::new(Vec::<Cmd>::new());
+  if let Some(command) = &cli.command {
+    match command {
+      Commands::Serve { port, config_path } => server::controller::start(port, config_path),
+      Commands::Edit { port } => {
+        let config_path = get_config_path_call(&port).expect("Should communicate with daemon");
+        edit::edit_file(config_path).unwrap();
 
-  let automata = Mutex::new(SequenceAutomata::new(&[""]));
-
-  crossbeam::scope(|scope| {
-    scope.spawn(|_| listen_results_execute_command(&commands, &results_rec));
-    scope.spawn(|_| manage_automata(&automata, &results_sender, &sequence_rec));
-    scope.spawn(|_| mouse_handler(sequence_sender));
-    scope.spawn(|_| commands_install(&automata, &commands));
-  })
-  .expect("Should run all threads");
+        match reinstall_call(&port) {
+          Ok(msg) => {
+            println!("{msg}");
+          }
+          Err(err) => {
+            eprintln!("{err}");
+            std::process::exit(1);
+          }
+        }
+      }
+    }
+  }
 }

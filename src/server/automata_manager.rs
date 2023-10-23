@@ -5,12 +5,12 @@ use crossbeam::channel::{Receiver, Sender};
 use crate::sequence_automata::{AutomataInstruction, SequenceAutomata};
 
 pub fn manage_automata(
-  aut: &Mutex<SequenceAutomata>,
+  automata: &Mutex<SequenceAutomata>,
   results_sender: &Sender<usize>,
   sequence_rec: &Receiver<AutomataInstruction>,
 ) {
   while let Ok(mouse_click_kind) = sequence_rec.recv() {
-    if let Some(results) = aut.lock().unwrap().put(mouse_click_kind) {
+    if let Some(results) = automata.lock().unwrap().put(mouse_click_kind) {
       for result_id in results {
         results_sender
           .send(result_id)

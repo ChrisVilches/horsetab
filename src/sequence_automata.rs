@@ -61,11 +61,10 @@ impl SequenceAutomata {
       AutomataInstruction::Char(c) => {
         if let Some(child) = self.graph[self.curr_node].get(&c) {
           self.curr_node = *child;
-          self.get_current_results()
         } else {
           self.failed = true;
-          None
         }
+        self.get_current_results()
       }
       AutomataInstruction::Reset => {
         self.reset();
@@ -134,6 +133,12 @@ mod tests {
       "01Rabc",
       &[None, None, None, None, None, Some(vec![2])],
     );
+  }
+
+  #[test]
+  fn test_overlap() {
+    let mut automata = build_automata(&["01", "011"]);
+    check_results(&mut automata, "011", &[None, Some(vec![0]), None]);
   }
 
   #[test]
