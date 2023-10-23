@@ -5,7 +5,7 @@ use crate::{
 };
 use std::{collections::BTreeSet, sync::Mutex};
 
-fn get_sequences(commands: &Vec<Cmd>) -> Vec<&str> {
+fn get_sequences(commands: &[Cmd]) -> Vec<&str> {
   commands
     .iter()
     .map(|c| c.sequence.as_ref())
@@ -18,11 +18,7 @@ fn sequence_is_reachable(sequence: &str, automata: &mut SequenceAutomata, id: us
     latest_result = automata.put(AutomataInstruction::Char(c));
   }
 
-  if let Some(res) = latest_result {
-    res.contains(&id)
-  } else {
-    false
-  }
+  latest_result.map_or(false, |res| res.contains(&id))
 }
 
 fn get_unreachable_sequences(sequences: &[&str]) -> Vec<usize> {
@@ -42,7 +38,7 @@ fn get_unreachable_sequences(sequences: &[&str]) -> Vec<usize> {
     }
   }
 
-  ids.iter().cloned().collect()
+  ids.iter().copied().collect()
 }
 
 fn format_binary_to_morse(s: &str) -> String {
@@ -60,8 +56,8 @@ pub enum InstallResult {
 impl ToString for InstallResult {
   fn to_string(&self) -> String {
     match self {
-      InstallResult::Ok(count) => format!("Installed {count} commands"),
-      InstallResult::Unreachable((count, sequences)) => {
+      Self::Ok(count) => format!("Installed {count} commands"),
+      Self::Unreachable((count, sequences)) => {
         let mut text = format!("Installed {count} commands, with some unreachable sequence(s):");
 
         for seq in sequences {
@@ -71,7 +67,7 @@ impl ToString for InstallResult {
 
         text
       }
-      InstallResult::Error(err) => format!("Failed to install commands: {err}").to_owned(),
+      Self::Error(err) => format!("Failed to install commands: {err}"),
     }
   }
 }
@@ -83,7 +79,7 @@ pub fn install_commands(
 ) -> InstallResult {
   let mut commands_guard = commands.lock().expect("Should obtain lock");
 
-  match read_commands(&config_path) {
+  match read_commands(config_path) {
     Ok(cmds) => *commands_guard = cmds,
     Err(err) => return InstallResult::Error(err),
   }

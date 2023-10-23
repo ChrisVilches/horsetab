@@ -25,10 +25,9 @@ fn match_line(line: &str) -> Option<(&str, &str)> {
 
   let mut capture = re.captures_iter(line).map(|c| c.extract());
 
-  match capture.next() {
-    Some((_, [sequence, command])) => Some((sequence, command.trim())),
-    None => None,
-  }
+  capture
+    .next()
+    .map(|(_, [sequence, command])| (sequence, command.trim()))
 }
 
 pub fn parse_cmd(line: &str) -> Result<Cmd> {

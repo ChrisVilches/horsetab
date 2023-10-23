@@ -621,6 +621,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "horsetab"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "crossbeam",
+ "device_query",
+ "edit",
+ "regex",
+ "reqwest",
+ "rouille",
+ "test-case",
+]
+
+[[package]]
 name = "http"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1256,22 +1272,6 @@ checksum = "e932934257d3b408ed8f30db49d85ea163bfe74961f017f405b025af298f0c7a"
 dependencies = [
  "core-foundation-sys",
  "libc",
-]
-
-[[package]]
-name = "seq-cmd"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "crossbeam",
- "device_query",
- "edit",
- "regex",
- "reqwest",
- "rouille",
- "test-case",
 ]
 
 [[package]]

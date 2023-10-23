@@ -29,10 +29,13 @@ pub fn start(port: &str, config_path: &str) {
     scope.spawn(|_| manage_automata(&automata, &results_sender, &sequence_rec));
     scope.spawn(|_| mouse_handler(sequence_sender));
     scope.spawn(|_| {
-      // TODO: THese parameters are shit.
-
       println!("Listening on port {port}");
-      start_http_server(&port, &config_path.to_owned(), &automata, &commands);
+      start_http_server(
+        port,
+        config_path,
+        Arc::clone(&automata),
+        Arc::clone(&commands),
+      );
     });
   })
   .expect("Should run all threads");

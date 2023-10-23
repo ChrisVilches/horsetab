@@ -70,10 +70,10 @@ fn main() {
     match command {
       Commands::Serve { port, config_path } => server::controller::start(port, config_path),
       Commands::Edit { port } => {
-        let config_path = get_config_path_call(&port).expect("Should communicate with daemon");
+        let config_path = get_config_path_call(port).expect("Should communicate with daemon");
         edit::edit_file(config_path).unwrap();
 
-        match reinstall_call(&port) {
+        match reinstall_call(port) {
           Ok(msg) => {
             println!("{msg}");
           }
