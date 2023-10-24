@@ -1,15 +1,14 @@
+use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Mutex;
-
-use crossbeam::channel::{Receiver, Sender};
 
 use crate::sequence_automata::{AutomataInstruction, SequenceAutomata};
 
 pub fn manage_automata(
   automata: &Mutex<SequenceAutomata>,
   results_sender: &Sender<usize>,
-  sequence_rec: &Receiver<AutomataInstruction>,
+  sequence_rec: Receiver<AutomataInstruction>,
 ) {
-  while let Ok(mouse_click_kind) = sequence_rec.recv() {
+  for mouse_click_kind in sequence_rec {
     if let Some(results) = automata.lock().unwrap().put(mouse_click_kind) {
       for result_id in results {
         results_sender

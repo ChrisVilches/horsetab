@@ -6,8 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-device_query = "1.1.3"
-crossbeam = "0.8.2"
 chrono = "0.4.31"
 anyhow = "1.0.75"
 rouille = "3.6.2"
@@ -15,6 +13,7 @@ clap = { version = "4.4.6", features = ["derive"] }
 reqwest = { version = "0.11", features = ["blocking"] }
 edit = "0.1.4"
 regex = "1.10.2"
+rdev = "0.5.3"
 
 [dev-dependencies]
 test-case = "3.2.1"

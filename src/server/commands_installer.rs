@@ -5,6 +5,13 @@ use crate::{
 };
 use std::{collections::BTreeSet, sync::Mutex};
 
+// TODO: Architecture issue. This file is inside the "server" folder, but it should be more like
+//       in a "lib" folder or "logic" folder, since it's not a hard requirement for it to be part of
+//       the server. (It could eventually be run from another place).
+//       That probably means moving several files outside this folder. And that's fine if the server ends up
+//       being really lightweight. But don't overthink this, if the restructure doesn't make perfect sense,
+//       then just remove this TODO.
+
 fn get_sequences(commands: &[Cmd]) -> Vec<&str> {
   commands
     .iter()
@@ -39,12 +46,6 @@ fn get_unreachable_sequences(sequences: &[&str]) -> Vec<usize> {
   }
 
   ids.iter().copied().collect()
-}
-
-fn format_binary_to_morse(s: &str) -> String {
-  s.chars()
-    .map(|c| if c == '0' { '.' } else { '-' })
-    .collect()
 }
 
 pub enum InstallResult {
@@ -98,8 +99,8 @@ pub fn install_commands(
       sequences.len(),
       unreachable_sequences
         .into_iter()
-        .map(format_binary_to_morse)
-        .collect::<Vec<String>>(),
+        .map(std::borrow::ToOwned::to_owned)
+        .collect(),
     ));
   }
 

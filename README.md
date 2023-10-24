@@ -13,7 +13,7 @@ Create a configuration file similar to crontab:
 
 ## How to Run
 
-Daemon:
+Run the daemon. You need to manually turn it into a background process and manage stdout/stderr (e.g. redirect it to a file).
 
 ```
 cargo run -- serve -p 1667 -c /home/user/commands.txt

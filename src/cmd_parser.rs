@@ -55,7 +55,6 @@ mod tests {
 
   #[test]
   fn test_error() {
-    println!("{:?}", parse_cmd(" .-.x-  x ").is_err());
     assert_eq!(
       parse_cmd(" x ").err().unwrap().to_string(),
       "Some commands have incorrect format"

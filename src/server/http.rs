@@ -1,17 +1,20 @@
 use super::commands_installer::{install_commands, InstallResult};
 use crate::{cmd_parser::Cmd, sequence_automata::SequenceAutomata};
-use rouille::Response;
-use std::sync::{Arc, Mutex};
+use rouille::{Request, Response, Server};
+use std::{
+  error::Error,
+  sync::{Arc, Mutex},
+};
 
-pub fn start_http_server(
+fn build_http_server(
   port: &str,
   config_path: &str,
   automata: Arc<Mutex<SequenceAutomata>>,
   commands: Arc<Mutex<Vec<Cmd>>>,
-) {
+) -> Result<Server<impl Fn(&Request) -> Response>, Box<dyn Error + Send + Sync>> {
   let config_path_clone = config_path.to_owned();
 
-  rouille::start_server(format!("0.0.0.0:{port}"), move |request| {
+  Server::new(format!("0.0.0.0:{port}"), move |request| {
     let method = request.method();
     let url = request.url();
 
@@ -29,5 +32,24 @@ pub fn start_http_server(
       }
       _ => Response::text("Not found").with_status_code(404),
     }
-  });
+  })
+}
+
+pub fn start_http_server(
+  port: &str,
+  config_path: &str,
+  automata: Arc<Mutex<SequenceAutomata>>,
+  commands: Arc<Mutex<Vec<Cmd>>>,
+) {
+  match build_http_server(port, config_path, automata, commands) {
+    Ok(server) => {
+      println!("Listening on {:?}", server.server_addr());
+      server.run();
+    }
+    Err(err) => {
+      eprintln!("Cannot start server");
+      eprintln!("{err}");
+      std::process::exit(1);
+    }
+  }
 }
