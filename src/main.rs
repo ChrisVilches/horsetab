@@ -17,11 +17,12 @@ mod api_client;
 mod cli;
 mod click_sequence_detector;
 mod cmd;
-mod cmd_parser;
+mod command_execution;
 mod constants;
 mod logger;
 mod sequence_automata;
 mod server;
+mod util;
 
 fn main() {
   start_cli_app();

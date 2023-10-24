@@ -1,5 +1,5 @@
 use super::commands_installer::{install_commands, InstallResult};
-use crate::{cmd_parser::Cmd, sequence_automata::SequenceAutomata};
+use crate::{cmd::Cmd, sequence_automata::SequenceAutomata};
 use anyhow::{bail, Result};
 use rouille::{Request, Response, Server};
 use std::{

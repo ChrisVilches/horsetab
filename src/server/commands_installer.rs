@@ -1,5 +1,6 @@
-use crate::cmd_parser::{parse_cmd, Cmd};
+use crate::cmd::{parse_command, Cmd};
 use crate::sequence_automata::{AutomataInstruction, SequenceAutomata};
+use crate::util::clean_command_lines;
 use anyhow::Result;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader};
@@ -22,13 +23,8 @@ fn read_lines_or_create(file_path: &str) -> Result<Vec<String>, std::io::Error> 
 fn lines_to_commands(lines: &[&str]) -> Result<Vec<Cmd>> {
   let mut result = Vec::<Cmd>::new();
 
-  let clean_lines = lines
-    .iter()
-    .map(|line| line.trim().to_owned())
-    .filter(|line| !line.is_empty());
-
-  for line in clean_lines {
-    result.push(parse_cmd(&line)?);
+  for line in clean_command_lines(lines.iter().copied()) {
+    result.push(parse_command(&line)?);
   }
 
   Ok(result)
@@ -83,6 +79,7 @@ fn get_unreachable_sequences(sequences: &[&str]) -> Vec<String> {
 
 pub enum InstallResult {
   Ok(usize),
+  // NoChange,
   Unreachable((usize, Vec<String>)),
   SyntaxError(anyhow::Error),
   FileError(std::io::Error),
@@ -92,6 +89,11 @@ impl ToString for InstallResult {
   fn to_string(&self) -> String {
     match self {
       Self::Ok(count) => format!("Installed {count} commands"),
+      // TODO: A bit harder to implement. The file contents have to be implemented, not the Vec<Cmd>
+      //       because the Vec<Cmd> is clean and ignores the commands that failed to parse, so sometimes
+      //       "NoChange" would be returned simply because the Vec didn't change but maybe the commands that
+      //       failed to be parsed did change.
+      // Self::NoChange => "No modification made"
       Self::Unreachable((count, sequences)) => {
         let mut text = format!("Installed {count} commands, with some unreachable sequence(s):");
 
@@ -176,6 +178,28 @@ mod tests {
     let cmd = lines_to_commands(&vec![" ", "   ", " "]);
     assert!(cmd.is_ok());
     assert!(cmd.unwrap().is_empty());
+  }
+
+  #[test]
+  fn test_read_with_comments() {
+    let cmd = lines_to_commands(&vec![" #", "  # .-.- aa ", "#", " #.-."]);
+    assert!(cmd.is_ok());
+    assert!(cmd.unwrap().is_empty());
+  }
+
+  #[test]
+  fn test_read_with_comments_2() {
+    let result = lines_to_commands(&vec![".-.-  #"]).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].sequence, ".-.-");
+    assert_eq!(result[0].command, "#");
+  }
+
+  #[test]
+  fn test_read_with_comments_bad_format() {
+    assert!(lines_to_commands(&vec!["  .-.#"]).is_err());
+    assert!(lines_to_commands(&vec!["  .#"]).is_err());
+    assert!(lines_to_commands(&vec![".#"]).is_err());
   }
 
   #[test]

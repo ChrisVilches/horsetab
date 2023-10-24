@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{
-  cmd_parser::Cmd,
+  cmd::Cmd,
   sequence_automata::SequenceAutomata,
   server::{commands_installer::InstallResult, http::start_http_server},
 };

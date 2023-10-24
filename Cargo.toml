@@ -17,6 +17,7 @@ edit = "0.1.4"
 regex = "1.10.2"
 rdev = "0.5.3"
 home = "0.5.5"
+colored = "2.0.4"
 
 [dev-dependencies]
 test-case = "3.2.1"
