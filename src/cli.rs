@@ -1,30 +1,31 @@
-use crate::{api_client, server};
+use crate::{
+  api_client,
+  constants::{get_default_config_path, DEFAULT_PORT},
+  server,
+};
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-
-// TODO: Specifying the port on every single command is a bit cumbersome.
-//       Maybe choose a default port that gets set automatically????
 
 #[derive(Subcommand)]
 pub enum Commands {
   #[command(about = "Start server process")]
   Serve {
-    #[arg(short, long)]
+    #[arg(short, long, default_value_t = DEFAULT_PORT)]
     port: u32,
 
-    #[arg(short, long)]
+    #[arg(short, long, default_value_t = get_default_config_path())]
     config_path: String,
   },
 
   #[command(about = "Show current commands")]
   Show {
-    #[arg(short, long)]
+    #[arg(short, long, default_value_t = DEFAULT_PORT)]
     port: u32,
   },
 
   #[command(about = "Edit commands")]
   Edit {
-    #[arg(short, long)]
+    #[arg(short, long, default_value_t = DEFAULT_PORT)]
     port: u32,
   },
 }

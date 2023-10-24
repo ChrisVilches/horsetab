@@ -607,6 +607,7 @@ dependencies = [
  "chrono",
  "clap",
  "edit",
+ "home",
  "rdev",
  "regex",
  "reqwest",

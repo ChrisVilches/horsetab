@@ -18,6 +18,7 @@ mod cli;
 mod click_sequence_detector;
 mod cmd;
 mod cmd_parser;
+mod constants;
 mod logger;
 mod sequence_automata;
 mod server;

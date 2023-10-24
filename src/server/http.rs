@@ -1,6 +1,6 @@
 use super::commands_installer::{install_commands, InstallResult};
 use crate::{cmd_parser::Cmd, sequence_automata::SequenceAutomata};
-use anyhow::Result;
+use anyhow::{bail, Result};
 use rouille::{Request, Response, Server};
 use std::{
   error::Error,
@@ -52,8 +52,12 @@ fn reinstall_commands(
   update_config_file(config_path, &new_content)?;
   let install_result = install_commands(config_path, automata, commands);
 
+  if let InstallResult::FileError(err) = install_result {
+    bail!(err);
+  }
+
   let status_code = match install_result {
-    InstallResult::Error(_) => 400,
+    InstallResult::SyntaxError(_) => 400,
     _ => 200,
   };
 
