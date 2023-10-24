@@ -1,6 +1,6 @@
 # Horse Tab
 
-Trigger Linux commands via morse code using your mouse.
+Trigger Linux/Unix commands via morse code using your mouse.
 
 ## Example Usage
 
