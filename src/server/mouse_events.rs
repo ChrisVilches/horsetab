@@ -38,7 +38,7 @@ fn handle_mouse_release(
 }
 
 pub fn mouse_handler(seq_sender: Sender<AutomataInstruction>) {
-  let click_detector = Arc::new(Mutex::new(ClickSequenceDetector::new(200)));
+  let click_detector = Mutex::new(ClickSequenceDetector::new(200));
 
   let listen_result = listen(move |event| match event.event_type {
     EventType::ButtonPress(_) => handle_mouse_press(&click_detector, &seq_sender),
