@@ -5,6 +5,6 @@ where
   lines
     .map(|line| line.trim().to_owned())
     .filter(|line: &String| !line.is_empty())
-    .filter(|line| !line.starts_with("#"))
+    .filter(|line| !line.starts_with('#'))
     .collect()
 }
