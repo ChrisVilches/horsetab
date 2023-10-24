@@ -1,3 +1,4 @@
+use anyhow::Result;
 use std::io::Write;
 use std::process::ExitStatus;
 use std::{
@@ -35,16 +36,18 @@ fn log<W, R>(
   status: ExitStatus,
   start_time: DateTime<Local>,
   elapsed_sec: i64,
-) where
+) -> Result<()>
+where
   R: Read,
   W: Write,
 {
   let header = build_log_header(cmd, start_time);
   let footer = build_log_footer(elapsed_sec, status);
 
-  writeln!(writer, "{header}").expect("Should write to file");
-  io::copy(&mut content, &mut writer).expect("Should write to stdout");
-  writeln!(writer, "{footer}").expect("Should write to file");
+  writeln!(writer, "{header}")?;
+  io::copy(&mut content, &mut writer)?;
+  writeln!(writer, "{footer}")?;
+  Ok(())
 }
 
 pub fn log_stderr(
@@ -55,7 +58,7 @@ pub fn log_stderr(
   elapsed_sec: i64,
 ) {
   let writer = io::stderr().lock();
-  log(writer, content, cmd, status, start_time, elapsed_sec);
+  log(writer, content, cmd, status, start_time, elapsed_sec).unwrap();
 }
 
 pub fn log_stdout(
@@ -66,5 +69,5 @@ pub fn log_stdout(
   elapsed_sec: i64,
 ) {
   let writer = io::stdout().lock();
-  log(writer, content, cmd, status, start_time, elapsed_sec);
+  log(writer, content, cmd, status, start_time, elapsed_sec).unwrap();
 }

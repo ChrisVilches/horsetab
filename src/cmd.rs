@@ -13,7 +13,7 @@ use std::{
 fn parse_lines(lines: Vec<std::io::Result<String>>) -> Result<Vec<Cmd>> {
   let commands = lines
     .into_iter()
-    .map(|line| line.expect("Should be able to read lines"))
+    .map(std::result::Result::unwrap)
     .map(|line| line.trim().to_owned())
     .filter(|line| !line.is_empty())
     .map(|line| parse_cmd(&line))

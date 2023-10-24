@@ -78,7 +78,7 @@ pub fn install_commands(
   automata: &Mutex<SequenceAutomata>,
   commands: &Mutex<Vec<Cmd>>,
 ) -> InstallResult {
-  let mut commands_guard = commands.lock().expect("Should obtain lock");
+  let mut commands_guard = commands.lock().unwrap();
 
   match read_commands(config_path) {
     Ok(cmds) => *commands_guard = cmds,

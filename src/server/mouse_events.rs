@@ -1,6 +1,6 @@
 use rdev::{listen, EventType};
 use std::sync::mpsc::Sender;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 use crate::{
   click_sequence_detector::{ClickSequenceDetector, MouseClickKind},

@@ -9,9 +9,11 @@
 #![deny(clippy::shadow_same)]
 #![deny(clippy::shadow_reuse)]
 #![deny(clippy::shadow_unrelated)]
+#![allow(clippy::significant_drop_tightening)]
 
 use cli::start_cli_app;
 
+mod api_client;
 mod cli;
 mod click_sequence_detector;
 mod cmd;

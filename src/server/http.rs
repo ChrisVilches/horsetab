@@ -1,13 +1,67 @@
 use super::commands_installer::{install_commands, InstallResult};
 use crate::{cmd_parser::Cmd, sequence_automata::SequenceAutomata};
+use anyhow::Result;
 use rouille::{Request, Response, Server};
 use std::{
   error::Error,
+  fs::{self, OpenOptions},
+  io::{Read, Write},
   sync::{Arc, Mutex},
 };
 
+fn handle_response(response: Result<Response>) -> Response {
+  match response {
+    Ok(res) => res,
+    Err(err) => Response::text(format!("Error: {err}")).with_status_code(500),
+  }
+}
+
+fn update_config_file(config_path: &str, new_content: &str) -> Result<()> {
+  let mut file = OpenOptions::new()
+    .write(true)
+    .truncate(true)
+    .open(config_path)?;
+
+  file.write_all(new_content.as_bytes())?;
+
+  Ok(())
+}
+
+fn get_body_as_string(request: &Request) -> Result<String> {
+  match request.data() {
+    Some(mut request_body) => {
+      let mut buf = String::new();
+      request_body.read_to_string(&mut buf)?;
+      Ok(buf)
+    }
+    None => Ok(String::new()),
+  }
+}
+
+fn read_config_file(config_path: &str) -> Result<Response> {
+  Ok(Response::text(fs::read_to_string(config_path)?))
+}
+
+fn reinstall_commands(
+  request: &Request,
+  config_path: &str,
+  automata: &Mutex<SequenceAutomata>,
+  commands: &Mutex<Vec<Cmd>>,
+) -> Result<Response> {
+  let new_content = get_body_as_string(request)?;
+  update_config_file(config_path, &new_content)?;
+  let install_result = install_commands(config_path, automata, commands);
+
+  let status_code = match install_result {
+    InstallResult::Error(_) => 400,
+    _ => 200,
+  };
+
+  Ok(Response::text(install_result.to_string()).with_status_code(status_code))
+}
+
 fn build_http_server(
-  port: &str,
+  port: u32,
   config_path: &str,
   automata: Arc<Mutex<SequenceAutomata>>,
   commands: Arc<Mutex<Vec<Cmd>>>,
@@ -18,25 +72,20 @@ fn build_http_server(
     let method = request.method();
     let url = request.url();
 
-    match (method, url.as_ref()) {
-      ("GET", "/config-path") => Response::text(&config_path_clone).with_status_code(200),
+    let response = match (method, url.as_ref()) {
+      ("GET", "/current-config-file-content") => read_config_file(&config_path_clone),
       ("PUT", "/re-install") => {
-        let install_result = install_commands(&config_path_clone, &automata, &commands);
-
-        let status_code = match install_result {
-          InstallResult::Error(_) => 400,
-          _ => 200,
-        };
-
-        Response::text(install_result.to_string()).with_status_code(status_code)
+        reinstall_commands(request, &config_path_clone, &automata, &commands)
       }
-      _ => Response::text("Not found").with_status_code(404),
-    }
+      _ => Ok(Response::text("Not found").with_status_code(404)),
+    };
+
+    handle_response(response)
   })
 }
 
 pub fn start_http_server(
-  port: &str,
+  port: u32,
   config_path: &str,
   automata: Arc<Mutex<SequenceAutomata>>,
   commands: Arc<Mutex<Vec<Cmd>>>,

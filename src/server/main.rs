@@ -13,7 +13,7 @@ use super::{
 
 use std::sync::mpsc;
 
-pub fn start(port: &str, config_path: &str) {
+pub fn start(port: u32, config_path: &str) {
   let (sequence_sender, sequence_rec) = mpsc::channel();
   let (results_sender, results_rec) = mpsc::channel::<usize>();
 

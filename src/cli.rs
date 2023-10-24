@@ -1,24 +1,31 @@
+use crate::{api_client, server};
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use reqwest::StatusCode;
 
-use crate::server;
+// TODO: Specifying the port on every single command is a bit cumbersome.
+//       Maybe choose a default port that gets set automatically????
 
 #[derive(Subcommand)]
 pub enum Commands {
   #[command(about = "Start server process")]
   Serve {
     #[arg(short, long)]
-    port: String,
+    port: u32,
 
     #[arg(short, long)]
     config_path: String,
   },
 
+  #[command(about = "Show current commands")]
+  Show {
+    #[arg(short, long)]
+    port: u32,
+  },
+
   #[command(about = "Edit commands")]
   Edit {
     #[arg(short, long)]
-    port: String,
+    port: u32,
   },
 }
 
@@ -29,58 +36,48 @@ pub struct Cli {
   pub command: Option<Commands>,
 }
 
-fn get_config_path_call(port: &str) -> Result<String> {
-  let res =
-    reqwest::blocking::get(format!("http://localhost:{port}/config-path"))?.error_for_status()?;
-  Ok(res.text()?)
-}
-
-fn reinstall_call(port: &str) -> Result<String> {
-  let client = reqwest::blocking::Client::new();
-  let res = client
-    .put(format!("http://localhost:{port}/re-install"))
-    .send()?;
-
-  match res.status() {
-    StatusCode::OK => Ok(res.text()?),
-    _ => Err(anyhow::anyhow!("{}", res.text()?)),
-  }
-}
-
 // TODO: I feel like the initial configuration file (when the user installs the app) should have
 //       some comments to explain stuff. But note that comments aren't handled yet (they throw error when
 //       parsed).
+//       Move this to issues on Github since it's hard to implement. This would be a future feature (not in this phase scope.)
 
 // TODO: Which file format would be the best so that Vim and other editors choose the best formatting/colors?
+//       Probably also for a different phase.
 
-// TODO: This is a bit bad. If the command is executed from two shells, the file will be opened using
-//       Vim in my case (a sensible guess for other users as well) but it will trigger a warning.
-//       It will also tell the user where the file is located. A better way to do this would be to simply
-//       1. GET the current content (new API needed)
-//       2. Open a temp file
-//       3. Edit and save the temp file
-//       4. POST the new contents to the server (new API needed)
-//       5. Make the server save the new content and re-read to install
-fn edit_subcommand(port: &str) {
-  let config_path = get_config_path_call(port).expect("Should communicate with daemon");
-  edit::edit_file(config_path).unwrap();
-
-  match reinstall_call(port) {
-    Ok(msg) => {
-      println!("{msg}");
-    }
-    Err(err) => {
-      eprintln!("{err}");
-      std::process::exit(1);
-    }
-  }
+fn edit_subcommand(port: u32) -> Result<String> {
+  let current_config = api_client::get_current_config(port)?;
+  let new_content = edit::edit(current_config)?;
+  api_client::reinstall_commands(port, &new_content)
 }
 
+// TODO: I think the modifications should be done here.
+//       Make all subcommands return a Result<String>. It should have contain either the text or the error message
+//       then it should return with code=1 here in this place.
 fn match_cli_command(cli: &Cli) {
   if let Some(command) = &cli.command {
-    match command {
-      Commands::Serve { port, config_path } => server::main::start(port, config_path),
-      Commands::Edit { port } => edit_subcommand(port),
+    let result = match command {
+      Commands::Serve { port, config_path } => {
+        server::main::start(*port, config_path);
+        Ok(String::new())
+      }
+      Commands::Edit { port } => edit_subcommand(*port),
+      Commands::Show { port } => api_client::get_current_config(*port),
+    };
+
+    match result {
+      Ok(msg) => {
+        println!("{msg}");
+      }
+      Err(err) => {
+        // TODO: Temp color print. Find a better way??
+        //       Mind that only the CLI tool needs to have colors, not the server.
+        //       The message "Failed to install commands: Some commands have incorrect format" is also
+        //       printed in the server-side, as well as the frontend, but only colorize the CLI, not the
+        //       the server (reading colored logs is hideous).
+        eprintln!("\x1b[93m{err}\x1b[0m");
+        // eprintln!("{err}");
+        std::process::exit(1);
+      }
     }
   }
 }
