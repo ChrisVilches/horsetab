@@ -24,6 +24,9 @@ pub fn start(port: u32, config_path: &str) {
   let install_result = install_commands(config_path, &automata, &commands);
   println!("{}", install_result.to_string());
 
+  // TODO: Either add a new enum value like "FileError" to make it explicit that it cannot read the file.
+  //       Or I dunno... maybe just remove this? lol (I think the above idea is fine), and include the
+  //       FileFormatError value too, to say that the syntax of the (already read successfully) file is wrong.
   if let InstallResult::Error(_) = install_result {
     println!("You must edit commands to retry installing them");
   }
