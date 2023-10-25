@@ -27,19 +27,25 @@ horsetab --version
 
 ## How to Run
 
-Run the daemon. You need to manually turn it into a background process and manage stdout/stderr (e.g. redirect it to a file).
+Run the main process:
 
 ```sh
-horsetab serve -p 1667 -c /home/user/commands.txt
+horsetab serve
+```
+
+You need to manually turn it into a background process and manage stdout/stderr (e.g. redirect it to a file). You can daemonize a process this way:
+
+```sh
+nohup horsetab serve >> stdout.log 2>> stderr.log &
 ```
 
 Edit commands (signals daemon to refresh the commands):
 
 ```sh
-horsetab edit -p 1667
+horsetab edit
 ```
 
-Or show the help message to learn more.
+Or show the help message to learn more:
 
 ```sh
 horsetab --help
