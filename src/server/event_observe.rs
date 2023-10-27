@@ -18,9 +18,6 @@ impl ToString for EventType {
     }
   }
 }
-// TODO: Too many mutexes.. Even in the caller, it uses another mutex to protect the observers.
-//       Can't I just pass the raw objects and let the internal mutexes protect the data?
-
 pub struct EventNotifier {
   observers: Arc<Mutex<BTreeMap<String, File>>>,
 }
@@ -73,7 +70,6 @@ impl EventNotifier {
     }
 
     self.unsubscribe(&remove_files);
-    // TODO: Kinda weird... this should be in the subscriber one, since it's its job to add/delete subscribers.
   }
 }
 

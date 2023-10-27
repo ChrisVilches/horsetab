@@ -11,10 +11,6 @@ fn notify_event(event_notifier: &mut EventNotifier, instruction: AutomataInstruc
   });
 }
 
-// TODO: Is all of this notify'ing expensive? Remember it happens on every click.
-//       The first bits occur whether there are listeners or not. So maybe I could guard it even more.
-//       Like add a "has_subscribers?" method, which sorta depends on the caller, but it's probably worth it.
-
 fn notify_success(event_notifier: &mut EventNotifier) {
   event_notifier.notify_with(|| EventType::FoundResults);
 }

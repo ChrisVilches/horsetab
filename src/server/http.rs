@@ -67,10 +67,9 @@ fn reinstall_commands(
   Ok(Response::text(install_result.to_string()).with_status_code(status_code))
 }
 
-// TODO: Not sure about using &Arc. Should be possible with Arc.
 fn watch_sequences(
   request: &Request,
-  event_subscriber: &Arc<Mutex<EventSubscriber>>,
+  event_subscriber: Arc<Mutex<EventSubscriber>>,
 ) -> Result<Response> {
   let file = get_body_as_string(request)?;
   event_subscriber.lock().unwrap().subscribe(&file);
@@ -92,7 +91,7 @@ fn build_http_server(
 
     let response = match (method, url.as_ref()) {
       ("GET", "/current-config-file-content") => read_config_file(&config_path_clone),
-      ("POST", "/observe-sequences") => watch_sequences(request, &event_subscriber),
+      ("POST", "/observe-sequences") => watch_sequences(request, Arc::clone(&event_subscriber)),
       ("PUT", "/re-install") => {
         reinstall_commands(request, &config_path_clone, &automata, &commands)
       }
