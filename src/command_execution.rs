@@ -9,7 +9,7 @@ fn seconds_elapsed_since(date_time: DateTime<Local>) -> i64 {
 pub fn spawn_process(cmd: &str) {
   let start_time = Local::now();
 
-  let mut process = Command::new("bash")
+  let mut child = Command::new("bash")
     .arg("-c")
     .arg(cmd)
     .stdout(Stdio::piped())
@@ -17,12 +17,12 @@ pub fn spawn_process(cmd: &str) {
     .spawn()
     .expect("Should execute command");
 
-  let status = process.wait().expect("Should wait child");
+  let status = child.wait().expect("Should wait child");
 
   let elapsed_sec = seconds_elapsed_since(start_time);
 
-  let stdout = process.stdout.unwrap();
-  let stderr = process.stderr.unwrap();
+  let stdout = child.stdout.unwrap();
+  let stderr = child.stderr.unwrap();
 
   log_stdout(stdout, cmd, status, start_time, elapsed_sec);
   log_stderr(stderr, cmd, status, start_time, elapsed_sec);
