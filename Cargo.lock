@@ -633,7 +633,7 @@ dependencies = [
 
 [[package]]
 name = "horsetab"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "anyhow",
  "chrono",
