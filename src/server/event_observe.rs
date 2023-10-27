@@ -37,20 +37,12 @@ impl EventNotifier {
     }
   }
 
-  fn unsubscribe(&self, files: &[String]) {
-    let mut observers = self.observers.lock().unwrap();
-
-    for file_to_remove in files {
-      observers.remove(file_to_remove);
-    }
-  }
-
   fn notify(&mut self, event: EventType) {
     let content = event.to_string();
 
     let mut remove_files = Vec::<String>::new();
 
-    let observers = self.observers.lock().unwrap();
+    let mut observers = self.observers.lock().unwrap();
 
     println!("Broadcasting to {} clients", observers.len());
 
@@ -69,7 +61,9 @@ impl EventNotifier {
       }
     }
 
-    self.unsubscribe(&remove_files);
+    for file_to_remove in remove_files {
+      observers.remove(&file_to_remove);
+    }
   }
 }
 
