@@ -88,16 +88,16 @@ fn get_file_stdout_stream(path: &str) -> Result<BufReader<ChildStdout>> {
 }
 
 fn print_from_buf_reader(buf: BufReader<ChildStdout>) {
-  let mut has_content = false;
+  let mut last_char = '\n';
 
   for byte in buf.bytes().flatten() {
-    if !has_content && byte == b'\n' {
+    if last_char == '\n' && byte == b'\n' {
       continue;
     }
 
     std::io::stdout().write_all(&[byte]).unwrap();
     std::io::stdout().flush().unwrap();
-    has_content = true;
+    last_char = byte as char;
   }
 }
 

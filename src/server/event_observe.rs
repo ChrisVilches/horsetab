@@ -1,3 +1,4 @@
+use std::fs;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 use std::{collections::BTreeMap, fs::File};
@@ -44,25 +45,24 @@ impl EventNotifier {
 
     let mut observers = self.observers.lock().unwrap();
 
-    println!("Broadcasting to {} clients", observers.len());
-
     for (file_name, mut file) in &*observers {
       let result = file.write(content.as_bytes());
 
       if let Err(err) = result {
         match err.kind() {
-          std::io::ErrorKind::BrokenPipe => {
-            remove_files.push(file_name.clone());
-          }
-          e => {
-            eprintln!("{e}");
-          }
+          std::io::ErrorKind::BrokenPipe => {}
+          e => eprintln!("Unhandled error while notifying: {e}"),
         }
+
+        remove_files.push(file_name.clone());
       }
     }
 
     for file_to_remove in remove_files {
       observers.remove(&file_to_remove);
+      if let Err(err) = fs::remove_file(file_to_remove) {
+        eprintln!("Error while removing file: {err}");
+      }
     }
   }
 }
