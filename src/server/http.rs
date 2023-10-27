@@ -1,10 +1,10 @@
-use super::commands_installer::{install_commands, InstallResult};
+use super::commands_installer::{install_commands, read_lines_or_create, InstallResult};
 use crate::{cmd::Cmd, sequence_automata::SequenceAutomata};
 use anyhow::{bail, Result};
 use rouille::{Request, Response, Server};
 use std::{
   error::Error,
-  fs::{self, OpenOptions},
+  fs::OpenOptions,
   io::{Read, Write},
   sync::{Arc, Mutex},
 };
@@ -39,7 +39,8 @@ fn get_body_as_string(request: &Request) -> Result<String> {
 }
 
 fn read_config_file(config_path: &str) -> Result<Response> {
-  Ok(Response::text(fs::read_to_string(config_path)?))
+  let content = read_lines_or_create(config_path)?.join("\n");
+  Ok(Response::text(content))
 }
 
 fn reinstall_commands(

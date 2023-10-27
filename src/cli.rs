@@ -43,17 +43,27 @@ pub struct Cli {
   pub command: Option<Commands>,
 }
 
-// TODO: I feel like the initial configuration file (when the user installs the app) should have
-//       some comments to explain stuff. But note that comments aren't handled yet (they throw error when
-//       parsed).
-//       Move this to issues on Github since it's hard to implement. This would be a future feature (not in this phase scope.)
+// TODO: (OK) I feel like the initial configuration file (when the user installs the app) should have
+//       some comments to explain stuff.
+//       (OK) But note that comments aren't handled yet (they throw error when parsed).
+//       (OK - not necessary) Move this to issues on Github since it's hard to implement. This would be a future feature (not in this phase scope.)
+//       DONE, just test it more.
 
-// TODO: Which file format would be the best so that Vim and other editors choose the best formatting/colors?
-//       Probably also for a different phase.
+static DEFAULT_FILE_CONTENT: &str = "# This is the config file, you can setup commands like this.
+# .-.-.- some_command.sh
+# ...---- another_command.sh
+";
 
 fn edit_subcommand(port: u32) -> Result<String> {
   let current_config = api_client::get_current_config(port)?;
-  let new_content = edit::edit(current_config)?;
+
+  let config_to_edit = if current_config.is_empty() {
+    DEFAULT_FILE_CONTENT
+  } else {
+    &current_config
+  };
+
+  let new_content = edit::edit(config_to_edit)?;
   api_client::reinstall_commands(port, &new_content)
 }
 
