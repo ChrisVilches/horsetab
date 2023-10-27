@@ -6,7 +6,10 @@ use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader};
 use std::{collections::BTreeSet, sync::Mutex};
 
-fn read_lines_or_create(file_path: &str) -> Result<Vec<String>, std::io::Error> {
+// TODO: Do I read the config file anywhere else?
+//       If it does, it might be using a method that doesn't create the file when it doesn't exist,
+//       so that may crash. All situations where the file is read should use this method.
+pub fn read_lines_or_create(file_path: &str) -> Result<Vec<String>, std::io::Error> {
   let file = OpenOptions::new()
     .create(true)
     .read(true)

@@ -3,6 +3,12 @@ use home::home_dir;
 pub static DEFAULT_PORT: u32 = 17757;
 static DEFAULT_CONFIG_FILE_NAME: &str = ".horsetab.conf";
 
+pub static DEFAULT_COMMAND_CONFIG_FILE_CONTENT: &str =
+  "# This is the config file, you can setup commands like this.
+# .-.-.- some_command.sh
+# ...---- another_command.sh
+";
+
 pub fn get_default_config_path() -> String {
   home_dir()
     .map(|p| p.join(DEFAULT_CONFIG_FILE_NAME))

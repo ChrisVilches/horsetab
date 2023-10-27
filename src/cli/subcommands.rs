@@ -1,6 +1,7 @@
 use std::io::{BufReader, Read, Write};
 use std::process::{ChildStdout, Command, Stdio};
 
+use crate::constants::DEFAULT_COMMAND_CONFIG_FILE_CONTENT;
 use crate::{
   api_client::{self},
   cmd::{parse_command, Cmd},
@@ -28,7 +29,15 @@ pub fn show_subcommand(port: u32, raw: bool) -> Result<String> {
 
 pub fn edit_subcommand(port: u32) -> Result<String> {
   let current_config = api_client::get_current_config(port)?;
-  let new_content = edit::edit(current_config)?;
+
+  let config_to_edit = if current_config.is_empty() {
+    DEFAULT_COMMAND_CONFIG_FILE_CONTENT
+  } else {
+    &current_config
+  };
+
+  let new_content = edit::edit(config_to_edit)?;
+
   api_client::reinstall_commands(port, &new_content)
 }
 
