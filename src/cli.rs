@@ -1,5 +1,8 @@
+use std::io::{BufReader, Read, Write};
+use std::process::{Command, Stdio};
+
 use crate::{
-  api_client,
+  api_client::{self},
   cmd::{parse_command, Cmd},
   constants::{get_default_config_path, DEFAULT_PORT},
   server,
@@ -31,6 +34,12 @@ pub enum Commands {
 
   #[command(about = "Edit commands")]
   Edit {
+    #[arg(short, long, default_value_t = DEFAULT_PORT)]
+    port: u32,
+  },
+
+  #[command(about = "Watch sequences")]
+  Watch {
     #[arg(short, long, default_value_t = DEFAULT_PORT)]
     port: u32,
   },
@@ -87,6 +96,48 @@ fn format_commands_list(commands: Vec<Cmd>, failed: usize) -> String {
   result.join("\n")
 }
 
+fn create_named_pipe() -> Result<String> {
+  let id = nanoid::nanoid!();
+  let path = format!("/tmp/horsetab-{id}");
+  unix_named_pipe::create(&path, Some(0o660))?;
+  Ok(path)
+}
+
+fn listen_sequences_blocking(path: &str, after_opened_file_callback: impl Fn()) -> Result<()> {
+  let mut child = Command::new("cat")
+    .arg(path)
+    .stdout(Stdio::piped())
+    .spawn()?;
+
+  let mut has_content = false;
+  let out = BufReader::new(child.stdout.take().unwrap());
+
+  after_opened_file_callback();
+
+  for byte in out.bytes().flatten() {
+    if !has_content && byte == b'\n' {
+      continue;
+    }
+
+    std::io::stdout().write_all(&[byte]).unwrap();
+    std::io::stdout().flush().unwrap();
+    has_content = true;
+  }
+
+  Ok(())
+}
+
+fn watch_sequences_subcommand(port: u32) -> Result<String> {
+  let path = create_named_pipe()?;
+
+  listen_sequences_blocking(&path, || {
+    api_client::watch_sequences(port, &path).unwrap();
+  })?;
+
+  println!();
+  anyhow::bail!("Server exited");
+}
+
 fn match_cli_subcommand(command: &Commands) -> Result<String> {
   match command {
     Commands::Serve { port, config_path } => {
@@ -110,6 +161,7 @@ fn match_cli_subcommand(command: &Commands) -> Result<String> {
         Err(_) => current_config,
       }
     }
+    Commands::Watch { port } => watch_sequences_subcommand(*port),
   }
 }
 

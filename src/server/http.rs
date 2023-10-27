@@ -1,4 +1,7 @@
-use super::commands_installer::{install_commands, InstallResult};
+use super::{
+  commands_installer::{install_commands, InstallResult},
+  event_observe::EventObserver,
+};
 use crate::{cmd::Cmd, sequence_automata::SequenceAutomata};
 use anyhow::{bail, Result};
 use rouille::{Request, Response, Server};
@@ -64,9 +67,20 @@ fn reinstall_commands(
   Ok(Response::text(install_result.to_string()).with_status_code(status_code))
 }
 
+// TODO: Not sure about using &Arc.
+fn watch_sequences(
+  request: &Request,
+  event_observer: &Arc<Mutex<EventObserver>>,
+) -> Result<Response> {
+  let file = get_body_as_string(request)?;
+  event_observer.lock().unwrap().observe(&file);
+  Ok(Response::empty_204())
+}
+
 fn build_http_server(
   port: u32,
   config_path: &str,
+  event_observer: Arc<Mutex<EventObserver>>,
   automata: Arc<Mutex<SequenceAutomata>>,
   commands: Arc<Mutex<Vec<Cmd>>>,
 ) -> Result<Server<impl Fn(&Request) -> Response>, Box<dyn Error + Send + Sync>> {
@@ -78,6 +92,7 @@ fn build_http_server(
 
     let response = match (method, url.as_ref()) {
       ("GET", "/current-config-file-content") => read_config_file(&config_path_clone),
+      ("POST", "/observe-sequences") => watch_sequences(request, &event_observer),
       ("PUT", "/re-install") => {
         reinstall_commands(request, &config_path_clone, &automata, &commands)
       }
@@ -91,10 +106,11 @@ fn build_http_server(
 pub fn start_http_server(
   port: u32,
   config_path: &str,
+  event_observer: Arc<Mutex<EventObserver>>,
   automata: Arc<Mutex<SequenceAutomata>>,
   commands: Arc<Mutex<Vec<Cmd>>>,
 ) {
-  match build_http_server(port, config_path, automata, commands) {
+  match build_http_server(port, config_path, event_observer, automata, commands) {
     Ok(server) => {
       println!("Listening on {:?}", server.server_addr());
       server.run();

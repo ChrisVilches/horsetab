@@ -23,3 +23,17 @@ pub fn get_current_config(port: u32) -> Result<String> {
     reqwest::blocking::get(build_url(port, "current-config-file-content"))?.error_for_status()?;
   Ok(res.text()?)
 }
+
+pub fn watch_sequences(port: u32, file_path: &str) -> Result<String> {
+  let client = reqwest::blocking::Client::new();
+  let res = client
+    .post(build_url(port, "observe-sequences"))
+    .body(file_path.to_owned())
+    .send()?;
+
+  match res.status() {
+    StatusCode::OK => Ok(res.text()?),
+    StatusCode::NO_CONTENT => Ok(String::new()),
+    _ => Err(anyhow::anyhow!("{}", res.text()?)),
+  }
+}

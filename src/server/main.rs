@@ -3,7 +3,9 @@ use std::sync::{Arc, Mutex};
 use crate::{
   cmd::Cmd,
   sequence_automata::SequenceAutomata,
-  server::{commands_installer::InstallResult, http::start_http_server},
+  server::{
+    commands_installer::InstallResult, event_observe::EventObserver, http::start_http_server,
+  },
 };
 
 use super::{
@@ -21,6 +23,9 @@ pub fn start(port: u32, config_path: &str) {
 
   let automata = Arc::new(Mutex::new(SequenceAutomata::new(&[""])));
 
+  // TODO: Can this be done without Arc????
+  let event_observer = Arc::new(Mutex::new(EventObserver::new()));
+
   println!("Config file path: {config_path}");
 
   let install_result = install_commands(config_path, &automata, &commands);
@@ -35,12 +40,13 @@ pub fn start(port: u32, config_path: &str) {
 
   std::thread::scope(|scope| {
     scope.spawn(|| listen_results_execute_command(&commands, results_rec));
-    scope.spawn(|| manage_automata(&automata, &results_sender, sequence_rec));
+    scope.spawn(|| manage_automata(&automata, &results_sender, sequence_rec, &event_observer));
     scope.spawn(|| mouse_handler(sequence_sender));
     scope.spawn(|| {
       start_http_server(
         port,
         config_path,
+        Arc::clone(&event_observer),
         Arc::clone(&automata),
         Arc::clone(&commands),
       );
