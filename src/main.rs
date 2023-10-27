@@ -11,8 +11,6 @@
 #![deny(clippy::shadow_unrelated)]
 #![allow(clippy::significant_drop_tightening)]
 
-use cli::start_cli_app;
-
 mod api_client;
 mod cli;
 mod click_sequence_detector;
@@ -25,5 +23,5 @@ mod server;
 mod util;
 
 fn main() {
-  start_cli_app();
+  cli::main::start_cli_app();
 }
