@@ -1,4 +1,4 @@
-use crate::cmd::{parse_command, Cmd};
+use crate::cmd::Cmd;
 use crate::sequence_automata::{AutomataInstruction, SequenceAutomata};
 use crate::util::clean_command_lines;
 use anyhow::Result;
@@ -24,7 +24,7 @@ fn lines_to_commands(lines: &[&str]) -> Result<Vec<Cmd>> {
   let mut result = Vec::<Cmd>::new();
 
   for line in clean_command_lines(lines.iter().copied()) {
-    result.push(parse_command(&line)?);
+    result.push(Cmd::parse(&line)?);
   }
 
   Ok(result)

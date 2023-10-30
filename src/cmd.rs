@@ -8,15 +8,6 @@ pub struct Cmd {
   pub command: String,
 }
 
-impl Cmd {
-  fn new(sequence: &str, command: &str) -> Self {
-    Self {
-      sequence: sequence.into(),
-      command: command.into(),
-    }
-  }
-}
-
 static REGEX: Mutex<OnceCell<Regex>> = Mutex::new(OnceCell::new());
 
 fn match_line(line: &str) -> Option<(&str, &str)> {
@@ -30,11 +21,16 @@ fn match_line(line: &str) -> Option<(&str, &str)> {
     .map(|(_, [sequence, command])| (sequence, command.trim()))
 }
 
-pub fn parse_command(line: &str) -> Result<Cmd> {
-  match match_line(line) {
-    Some((sequence, command)) => Ok(Cmd::new(sequence, command)),
-    None => {
-      bail!("Some commands have incorrect format")
+impl Cmd {
+  pub fn parse(line: &str) -> Result<Self> {
+    match match_line(line) {
+      Some((sequence, command)) => Ok(Self {
+        sequence: sequence.into(),
+        command: command.into(),
+      }),
+      None => {
+        bail!("Some commands have incorrect format")
+      }
     }
   }
 }
@@ -56,24 +52,24 @@ mod tests {
   #[test]
   fn test_error() {
     assert_eq!(
-      parse_command(" x ").err().unwrap().to_string(),
+      Cmd::parse(" x ").err().unwrap().to_string(),
       "Some commands have incorrect format"
     );
     assert_eq!(
-      parse_command(" .-.x-  x ").err().unwrap().to_string(),
+      Cmd::parse(" .-.x-  x ").err().unwrap().to_string(),
       "Some commands have incorrect format"
     );
   }
 
   #[test]
   fn test_empty_line() {
-    assert!(parse_command("").is_err());
-    assert!(parse_command("  ").is_err());
+    assert!(Cmd::parse("").is_err());
+    assert!(Cmd::parse("  ").is_err());
   }
 
   #[test]
   fn test_command_parse() {
-    let res = parse_command(" .-.-   some_cmd.sh    >>log ");
+    let res = Cmd::parse(" .-.-   some_cmd.sh    >>log ");
     assert!(res.is_ok());
     let cmd = res.unwrap();
     assert_eq!(cmd.command, "some_cmd.sh    >>log");
@@ -82,7 +78,7 @@ mod tests {
 
   #[test]
   fn test_command_parse_2() {
-    let cmd = parse_command("  .-.- one .-.- two").unwrap();
+    let cmd = Cmd::parse("  .-.- one .-.- two").unwrap();
     assert_eq!(cmd.sequence, ".-.-");
     assert_eq!(cmd.command, "one .-.- two")
   }

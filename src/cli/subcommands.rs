@@ -5,7 +5,7 @@ use crate::constants::DEFAULT_COMMAND_CONFIG_FILE_CONTENT;
 use crate::util::effectful_format_bytes_merge_newlines;
 use crate::{
   api_client::{self},
-  cmd::{parse_command, Cmd},
+  cmd::Cmd,
   util::clean_command_lines,
 };
 use anyhow::Result;
@@ -42,12 +42,12 @@ pub fn edit_subcommand(port: u32) -> Result<String> {
   api_client::reinstall_commands(port, &new_content)
 }
 
-pub fn text_to_commands(text: &str) -> (Vec<Cmd>, usize) {
+fn text_to_commands(text: &str) -> (Vec<Cmd>, usize) {
   let mut failed = 0;
   let mut commands = vec![];
 
   for line in clean_command_lines(text.lines()) {
-    parse_command(&line).map_or_else(|_| failed += 1, |cmd| commands.push(cmd));
+    Cmd::parse(&line).map_or_else(|_| failed += 1, |cmd| commands.push(cmd));
   }
 
   (commands, failed)
