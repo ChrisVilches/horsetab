@@ -24,6 +24,14 @@ pub fn get_current_config(port: u32) -> Result<String> {
   Ok(res.text()?)
 }
 
+pub fn get_current_installed_commands(port: u32) -> Result<String> {
+  Ok(
+    reqwest::blocking::get(build_url(port, "current-installed-commands"))?
+      .error_for_status()?
+      .text()?,
+  )
+}
+
 pub fn watch_sequences(port: u32, file_path: &str) -> Result<String> {
   let client = reqwest::blocking::Client::new();
   let res = client

@@ -6,13 +6,12 @@ use crate::util::effectful_format_bytes_merge_newlines;
 use crate::{
   api_client::{self},
   cmd::Cmd,
-  util::clean_command_lines,
 };
 use anyhow::Result;
 use colored::Colorize;
 
 pub fn show_subcommand(port: u32, raw: bool) -> Result<String> {
-  let current_config = api_client::get_current_config(port);
+  let current_config = api_client::get_current_installed_commands(port);
 
   #[allow(clippy::option_if_let_else)]
   match current_config {
@@ -20,8 +19,13 @@ pub fn show_subcommand(port: u32, raw: bool) -> Result<String> {
       if raw {
         Ok(text)
       } else {
-        let (cmds, failed) = text_to_commands(&text);
-        Ok(format_commands_list(cmds, failed))
+        let cmds = text
+          .split('\n')
+          .filter(|s| !s.is_empty())
+          .map(|s| Cmd::parse(s).expect("Should have correct format"))
+          .collect::<Vec<Cmd>>();
+
+        Ok(format_commands_list(&cmds))
       }
     }
     Err(_) => current_config,
@@ -42,34 +46,12 @@ pub fn edit_subcommand(port: u32) -> Result<String> {
   api_client::reinstall_commands(port, &new_content)
 }
 
-fn text_to_commands(text: &str) -> (Vec<Cmd>, usize) {
-  let mut failed = 0;
-  let mut commands = vec![];
-
-  for line in clean_command_lines(text.lines()) {
-    Cmd::parse(&line).map_or_else(|_| failed += 1, |cmd| commands.push(cmd));
-  }
-
-  (commands, failed)
-}
-
-fn format_commands_list(commands: Vec<Cmd>, failed: usize) -> String {
-  let mut result: Vec<String> = vec![];
-
-  if failed > 0 {
-    result.push(
-      format!("{failed} command(s) failed to parse")
-        .red()
-        .to_string(),
-    );
-    result.push(String::new());
-  }
-
-  for cmd in commands {
-    result.push(format!("{}\t{}", cmd.sequence.yellow().bold(), cmd.command));
-  }
-
-  result.join("\n")
+fn format_commands_list(commands: &[Cmd]) -> String {
+  commands
+    .iter()
+    .map(|cmd| format!("{}\t{}", cmd.sequence.yellow().bold(), cmd.command))
+    .collect::<Vec<String>>()
+    .join("\n")
 }
 
 fn create_named_pipe() -> Result<String> {

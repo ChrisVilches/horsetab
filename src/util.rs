@@ -2,10 +2,12 @@ pub fn clean_command_lines<'a, I>(lines: I) -> Vec<String>
 where
   I: Iterator<Item = &'a str>,
 {
+  // TODO: The line regarding comments was removed (in order to allow the "shebang")
+  //       was this OK?? review. HOPEFULLY UNIT TEST.
   lines
     .map(|line| line.trim().to_owned())
     .filter(|line| !line.is_empty())
-    .filter(|line| !line.starts_with('#'))
+    .filter(|line| line.starts_with("#!") || !line.starts_with('#'))
     .collect()
 }
 
@@ -32,6 +34,25 @@ pub fn effectful_format_bytes_merge_newlines(string: &mut [u8], n: usize, prev_c
   &string[start..j]
 }
 
+pub fn parse_shebang_or_default(text: &str, default: &[&str]) -> Vec<String> {
+  let trimmed = text.trim();
+
+  if trimmed.starts_with("#!") {
+    trimmed.split('\n').next().unwrap()[2..]
+      .split(' ')
+      .filter(|s| !s.is_empty())
+      .map(std::borrow::ToOwned::to_owned)
+      .collect()
+  } else {
+    // TODO: I don't want to use two maps with to_owned.
+    default
+      .iter()
+      .map(std::borrow::ToOwned::to_owned)
+      .map(std::borrow::ToOwned::to_owned)
+      .collect()
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -54,5 +75,16 @@ mod tests {
 
     let result = effectful_format_bytes_merge_newlines(slice, len, prev_char);
     assert_eq!(String::from_utf8_lossy(result), expected);
+  }
+
+  #[test_case("#!/bin/zsh -c\nhello, some text", &["/usr/bin/env", "python3", "-c"], &["/bin/zsh", "-c"])]
+  #[test_case("   #!/bin/zsh -c\nhello world", &["/usr/bin/env", "python3", "-c"], &["/bin/zsh", "-c"])]
+  #[test_case("   #!  /bin/zsh -c\nhello", &["/usr/bin/env", "python3", "-c"], &["/bin/zsh", "-c"])]
+  #[test_case("   #!  /bin/zsh  -c  \nworld", &["/usr/bin/env", "python3", "-c"], &["/bin/zsh", "-c"])]
+  #[test_case(" # /bin/zsh  -c \n default", &["/usr/bin/env", "python3", "-c"], &["/usr/bin/env", "python3", "-c"])]
+  #[test_case(" empty ", &["/usr/bin/env", "python3", "-c"], &["/usr/bin/env", "python3", "-c"])]
+  #[test_case("hello, some text", &["bash", "-c"], &["bash", "-c"])]
+  fn test_parse_shebang_or_default(text: &str, default: &[&str], expected: &[&str]) {
+    assert_eq!(parse_shebang_or_default(text, default), expected);
   }
 }

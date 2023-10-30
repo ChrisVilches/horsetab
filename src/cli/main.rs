@@ -79,10 +79,17 @@ pub fn start_cli_app() {
 
     match subcommand_result {
       Ok(msg) => {
-        println!("{msg}");
+        if !msg.is_empty() {
+          println!("{msg}");
+        }
       }
       Err(err) => {
-        eprintln!("{}", err.to_string().red());
+        let err_msg = err.to_string();
+
+        if !err_msg.is_empty() {
+          eprintln!("{}", err_msg.red());
+        }
+
         std::process::exit(1);
       }
     }

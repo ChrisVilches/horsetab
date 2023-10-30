@@ -12,7 +12,7 @@ static REGEX: Mutex<OnceCell<Regex>> = Mutex::new(OnceCell::new());
 
 fn match_line(line: &str) -> Option<(&str, &str)> {
   let guard = REGEX.lock().unwrap();
-  let re = guard.get_or_init(|| Regex::new(r"^\s*([.-]+)\s+(.+)$").unwrap());
+  let re = guard.get_or_init(|| Regex::new(r"^\s*([.-]{2,})\s+(.+)$").unwrap());
 
   let mut capture = re.captures_iter(line).map(|c| c.extract());
 

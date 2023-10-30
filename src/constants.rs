@@ -2,12 +2,10 @@ use home::home_dir;
 
 pub static DEFAULT_PORT: u32 = 17757;
 static DEFAULT_CONFIG_FILE_NAME: &str = ".horsetab.conf";
+pub static DEFAULT_INTERPRETER: [&str; 2] = ["sh", "-c"];
 
 pub static DEFAULT_COMMAND_CONFIG_FILE_CONTENT: &str =
-  "# This is the config file, you can setup commands like this.
-# .-.-.- some_command.sh
-# ...---- another_command.sh
-";
+  include_str!("../assets/default_config.conf");
 
 pub fn get_default_config_path() -> String {
   home_dir()

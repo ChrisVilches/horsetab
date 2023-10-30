@@ -49,26 +49,35 @@ fn read_config_file(config_path: &str) -> Result<Response> {
   Ok(Response::text(content))
 }
 
-fn reinstall_commands(
+fn reinstall_config(
   request: &Request,
   config_path: &str,
   automata: &Mutex<SequenceAutomata>,
   commands: &Mutex<Vec<Cmd>>,
+  pre_cmd: &Mutex<String>,
 ) -> Result<Response> {
   let new_content = get_body_as_string(request)?;
   update_config_file(config_path, &new_content)?;
-  let install_result = install_commands(config_path, automata, commands);
+  let install_result = install_commands(config_path, automata, commands, pre_cmd);
 
   if let InstallResult::FileError(err) = install_result {
     bail!(err);
   }
 
-  let status_code = match install_result {
-    InstallResult::SyntaxError(_) => 400,
-    _ => 200,
-  };
+  Ok(Response::text(install_result.to_string()).with_status_code(200))
+}
 
-  Ok(Response::text(install_result.to_string()).with_status_code(status_code))
+#[allow(clippy::unnecessary_wraps)]
+fn get_current_installed_commands(commands: &Mutex<Vec<Cmd>>) -> Result<Response> {
+  let current_commands_text = commands
+    .lock()
+    .unwrap()
+    .iter()
+    .map(|cmd| format!("{} {}", cmd.sequence, cmd.command))
+    .collect::<Vec<String>>()
+    .join("\n");
+
+  Ok(Response::text(current_commands_text))
 }
 
 fn watch_sequences(
@@ -102,6 +111,7 @@ fn build_http_server(
   event_subscriber: Arc<Mutex<EventSubscriber>>,
   automata: Arc<Mutex<SequenceAutomata>>,
   commands: Arc<Mutex<Vec<Cmd>>>,
+  pre_cmd: Arc<Mutex<String>>,
 ) -> Result<Server<impl Fn(&Request) -> Response>, Box<dyn Error + Send + Sync>> {
   let config_path_clone = config_path.to_owned();
 
@@ -111,10 +121,11 @@ fn build_http_server(
 
     let response = match (method, url.as_ref()) {
       ("GET", "/current-config-file-content") => read_config_file(&config_path_clone),
+      ("GET", "/current-installed-commands") => get_current_installed_commands(&commands),
       ("POST", "/observe-sequences") => watch_sequences(request, &event_subscriber),
       ("POST", "/send-sequence") => send_sequence(request, &sequence_sender),
       ("PUT", "/re-install") => {
-        reinstall_commands(request, &config_path_clone, &automata, &commands)
+        reinstall_config(request, &config_path_clone, &automata, &commands, &pre_cmd)
       }
       _ => Ok(Response::text("Not found").with_status_code(404)),
     };
@@ -130,6 +141,7 @@ pub fn start_http_server(
   event_subscriber: Arc<Mutex<EventSubscriber>>,
   automata: Arc<Mutex<SequenceAutomata>>,
   commands: Arc<Mutex<Vec<Cmd>>>,
+  pre_cmd: Arc<Mutex<String>>,
 ) {
   match build_http_server(
     port,
@@ -138,6 +150,7 @@ pub fn start_http_server(
     event_subscriber,
     automata,
     commands,
+    pre_cmd,
   ) {
     Ok(server) => {
       println!("Listening on {:?}", server.server_addr());

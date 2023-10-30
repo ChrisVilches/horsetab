@@ -53,6 +53,16 @@ Or show the help message to learn more:
 horsetab --help
 ```
 
+## Configuration File
+
+Configuration can be done by executing:
+
+```sh
+horsetab edit
+```
+
+See an [./assets/default_config.conf](example).
+
 ## Troubleshooting
 
 ### Commands that hang the main process
