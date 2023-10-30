@@ -6,9 +6,6 @@ use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader};
 use std::{collections::BTreeSet, sync::Mutex};
 
-// TODO: Do I read the config file anywhere else?
-//       If it does, it might be using a method that doesn't create the file when it doesn't exist,
-//       so that may crash. All situations where the file is read should use this method.
 pub fn read_lines_or_create(file_path: &str) -> Result<Vec<String>, std::io::Error> {
   let file = OpenOptions::new()
     .create(true)
@@ -32,13 +29,6 @@ fn lines_to_commands(lines: &[&str]) -> Result<Vec<Cmd>> {
 
   Ok(result)
 }
-
-// TODO: Architecture issue. This file is inside the "server" folder, but it should be more like
-//       in a "lib" folder or "logic" folder, since it's not a hard requirement for it to be part of
-//       the server. (It could eventually be run from another place).
-//       That probably means moving several files outside this folder. And that's fine if the server ends up
-//       being really lightweight. But don't overthink this, if the restructure doesn't make perfect sense,
-//       then just remove this TODO.
 
 fn pluck_sequence(commands: &[Cmd]) -> Vec<&str> {
   commands
@@ -92,10 +82,12 @@ impl ToString for InstallResult {
   fn to_string(&self) -> String {
     match self {
       Self::Ok(count) => format!("Installed {count} commands"),
-      // TODO: A bit harder to implement. The file contents have to be implemented, not the Vec<Cmd>
+      // TODO: (NoChange) A bit harder to implement. The file contents have to be checked, not the Vec<Cmd>
       //       because the Vec<Cmd> is clean and ignores the commands that failed to parse, so sometimes
       //       "NoChange" would be returned simply because the Vec didn't change but maybe the commands that
       //       failed to be parsed did change.
+      //       In simpler words: it's necessary to check if the file (string) changed, not the Vec<Cmd> result
+      //       to avoid a wrong result.
       // Self::NoChange => "No modification made"
       Self::Unreachable((count, sequences)) => {
         let mut text = format!("Installed {count} commands, with some unreachable sequence(s):");
@@ -113,6 +105,7 @@ impl ToString for InstallResult {
   }
 }
 
+// TODO: In order to stabilize the config file grammar, I should write unit tests for this function.
 pub fn install_commands(
   config_path: &str,
   automata: &Mutex<SequenceAutomata>,

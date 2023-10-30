@@ -1,4 +1,6 @@
-use super::subcommands::{edit_subcommand, show_subcommand, watch_sequences_subcommand};
+use super::subcommands::{
+  edit_subcommand, send_sequence_subcommand, show_subcommand, watch_sequences_subcommand,
+};
 use crate::{
   constants::{get_default_config_path, DEFAULT_PORT},
   server,
@@ -33,6 +35,15 @@ pub enum Commands {
     port: u32,
   },
 
+  #[command(about = "Send a sequence")]
+  SendSequence {
+    #[arg(short, long, default_value_t = DEFAULT_PORT)]
+    port: u32,
+
+    #[arg(short, long)]
+    sequence: String,
+  },
+
   #[command(about = "Watch sequences")]
   Watch {
     #[arg(short, long, default_value_t = DEFAULT_PORT)]
@@ -55,6 +66,7 @@ fn match_cli_subcommand(command: &Commands) -> Result<String> {
     }
     Commands::Edit { port } => edit_subcommand(*port),
     Commands::Show { port, raw } => show_subcommand(*port, *raw),
+    Commands::SendSequence { port, sequence } => send_sequence_subcommand(*port, sequence),
     Commands::Watch { port } => watch_sequences_subcommand(*port),
   }
 }

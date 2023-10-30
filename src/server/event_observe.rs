@@ -15,7 +15,7 @@ impl ToString for EventType {
     match self {
       Self::SequenceItem(c) => format!("{c}"),
       Self::SequenceReset => "\n".to_owned(),
-      Self::FoundResults => "*\n".to_owned(),
+      Self::FoundResults => "* Match found\n".to_owned(),
     }
   }
 }
@@ -29,10 +29,6 @@ pub struct EventSubscriber {
 
 impl EventNotifier {
   pub fn notify_with(&mut self, f: impl Fn() -> EventType) {
-    // TODO: Has to acquire this lock every time I click (even if there are no subscribers),
-    //       plus the mutex for the wrapper of the notifier. Probably no way to fix this.
-    //       Triage.
-
     if !self.observers.lock().unwrap().is_empty() {
       self.notify(f());
     }

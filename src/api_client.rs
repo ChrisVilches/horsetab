@@ -37,3 +37,17 @@ pub fn watch_sequences(port: u32, file_path: &str) -> Result<String> {
     _ => Err(anyhow::anyhow!("{}", res.text()?)),
   }
 }
+
+pub fn send_sequence(port: u32, sequence: &str) -> Result<String> {
+  let client = reqwest::blocking::Client::new();
+  let res = client
+    .post(build_url(port, "send-sequence"))
+    .body(sequence.to_owned())
+    .send()?;
+
+  match res.status() {
+    StatusCode::OK => Ok(res.text()?),
+    StatusCode::NO_CONTENT => Ok(String::new()),
+    _ => Err(anyhow::anyhow!("{}", res.text()?)),
+  }
+}

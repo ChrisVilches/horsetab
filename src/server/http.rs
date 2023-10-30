@@ -2,14 +2,17 @@ use super::{
   commands_installer::{install_commands, read_lines_or_create, InstallResult},
   event_observe::EventSubscriber,
 };
-use crate::{cmd::Cmd, sequence_automata::SequenceAutomata};
+use crate::{
+  cmd::Cmd,
+  sequence_automata::{AutomataInstruction, SequenceAutomata},
+};
 use anyhow::{bail, Result};
 use rouille::{Request, Response, Server};
 use std::{
   error::Error,
   fs::OpenOptions,
   io::{Read, Write},
-  sync::{Arc, Mutex},
+  sync::{mpsc::Sender, Arc, Mutex},
 };
 
 fn handle_response(response: Result<Response>) -> Response {
@@ -77,9 +80,25 @@ fn watch_sequences(
   Ok(Response::empty_204())
 }
 
+fn send_sequence(
+  request: &Request,
+  sequence_sender: &Sender<AutomataInstruction>,
+) -> Result<Response> {
+  let seq = get_body_as_string(request)?;
+  sequence_sender.send(AutomataInstruction::Reset)?;
+
+  for c in seq.chars() {
+    sequence_sender.send(AutomataInstruction::Char(c))?;
+  }
+  sequence_sender.send(AutomataInstruction::Reset)?;
+
+  Ok(Response::empty_204())
+}
+
 fn build_http_server(
   port: u32,
   config_path: &str,
+  sequence_sender: Sender<AutomataInstruction>,
   event_subscriber: Arc<Mutex<EventSubscriber>>,
   automata: Arc<Mutex<SequenceAutomata>>,
   commands: Arc<Mutex<Vec<Cmd>>>,
@@ -93,6 +112,7 @@ fn build_http_server(
     let response = match (method, url.as_ref()) {
       ("GET", "/current-config-file-content") => read_config_file(&config_path_clone),
       ("POST", "/observe-sequences") => watch_sequences(request, &event_subscriber),
+      ("POST", "/send-sequence") => send_sequence(request, &sequence_sender),
       ("PUT", "/re-install") => {
         reinstall_commands(request, &config_path_clone, &automata, &commands)
       }
@@ -106,11 +126,19 @@ fn build_http_server(
 pub fn start_http_server(
   port: u32,
   config_path: &str,
+  sequence_sender: Sender<AutomataInstruction>,
   event_subscriber: Arc<Mutex<EventSubscriber>>,
   automata: Arc<Mutex<SequenceAutomata>>,
   commands: Arc<Mutex<Vec<Cmd>>>,
 ) {
-  match build_http_server(port, config_path, event_subscriber, automata, commands) {
+  match build_http_server(
+    port,
+    config_path,
+    sequence_sender,
+    event_subscriber,
+    automata,
+    commands,
+  ) {
     Ok(server) => {
       println!("Listening on {:?}", server.server_addr());
       server.run();

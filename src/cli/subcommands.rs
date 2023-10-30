@@ -2,6 +2,7 @@ use std::io::{BufReader, Read, Write};
 use std::process::{ChildStdout, Command, Stdio};
 
 use crate::constants::DEFAULT_COMMAND_CONFIG_FILE_CONTENT;
+use crate::util::effectful_format_bytes_merge_newlines;
 use crate::{
   api_client::{self},
   cmd::{parse_command, Cmd},
@@ -87,29 +88,44 @@ fn get_file_stdout_stream(path: &str) -> Result<BufReader<ChildStdout>> {
   Ok(BufReader::new(child.stdout.take().unwrap()))
 }
 
-fn print_from_buf_reader(buf: BufReader<ChildStdout>) {
-  let mut last_char = '\n';
+fn print_from_buf_reader<R, W>(mut buf: BufReader<R>, mut out: W)
+where
+  R: Read,
+  W: Write,
+{
+  let mut last_char = b'\n';
+  let mut result = [0; 30];
 
-  for byte in buf.bytes().flatten() {
-    if last_char == '\n' && byte == b'\n' {
-      continue;
+  loop {
+    let n_read = buf.read(&mut result).unwrap();
+    if n_read == 0 {
+      break;
     }
 
-    std::io::stdout().write_all(&[byte]).unwrap();
-    std::io::stdout().flush().unwrap();
-    last_char = byte as char;
+    let content_to_print = effectful_format_bytes_merge_newlines(&mut result, n_read, last_char);
+
+    if !content_to_print.is_empty() {
+      out.write_all(content_to_print).unwrap();
+      out.flush().unwrap();
+      last_char = *content_to_print.last().unwrap();
+    }
   }
 }
 
 pub fn watch_sequences_subcommand(port: u32) -> Result<String> {
   let path = create_named_pipe()?;
 
-  let out = get_file_stdout_stream(&path)?;
+  let child_stdout = get_file_stdout_stream(&path)?;
 
   api_client::watch_sequences(port, &path).unwrap();
 
-  print_from_buf_reader(out);
+  print_from_buf_reader(child_stdout, std::io::stdout());
 
   println!();
-  anyhow::bail!("Server exited");
+  anyhow::bail!("Stopped getting data");
+}
+
+pub fn send_sequence_subcommand(port: u32, sequence: &str) -> Result<String> {
+  api_client::send_sequence(port, sequence)?;
+  Ok(String::new())
 }

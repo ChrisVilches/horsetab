@@ -37,6 +37,8 @@ pub fn start(port: u32, config_path: &str) {
     _ => {}
   }
 
+  let sequence_sender_clone = sequence_sender.clone();
+
   std::thread::scope(|scope| {
     scope.spawn(|| listen_results_execute_command(&commands, results_rec));
     scope.spawn(|| {
@@ -52,6 +54,7 @@ pub fn start(port: u32, config_path: &str) {
       start_http_server(
         port,
         config_path,
+        sequence_sender_clone,
         Arc::new(Mutex::new(event_subscriber)),
         Arc::clone(&automata),
         Arc::clone(&commands),

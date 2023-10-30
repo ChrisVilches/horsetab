@@ -29,16 +29,6 @@ fn build_log_footer(elapsed_sec: i64, status: ExitStatus) -> String {
   }
 }
 
-/*
-TODO: not necessarily a bug but the toggle light script generates this STDERR
-
-[2023-10-25 05:35:11] ~/toggle_light.ssh
-[sudo] password for felo: Done in 1s
-
-It seems it doesn't add a newline. Maybe one way to fix this easily would be to
-idempotently ensure it ends with a newline.
-*/
-
 fn log<W, R>(
   mut writer: W,
   mut content: R,

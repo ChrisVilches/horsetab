@@ -51,6 +51,18 @@ Or show the help message to learn more:
 horsetab --help
 ```
 
+## Troubleshooting
+
+### Commands that hang the main process
+
+If a command runs in the foreground for a long time, and/or keeps outputting data to stdout/stderr, new commands may not be executed even after a matching sequence.
+
+In order to fix this issue, find the command that hangs the main process, then modify it so it redirects its output somewhere else (e.g. a file, `/dev/null`, etc), and make it run in the background:
+
+```sh
+..---.- my_command > /dev/null 2>&1 &
+```
+
 ## Credits
 
 Made by Chris Vilches using the Rust programming language.

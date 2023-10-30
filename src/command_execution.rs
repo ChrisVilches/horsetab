@@ -9,7 +9,7 @@ fn seconds_elapsed_since(date_time: DateTime<Local>) -> i64 {
 pub fn spawn_process(cmd: &str) {
   let start_time = Local::now();
 
-  let mut child = Command::new("bash")
+  let mut child = Command::new("sh")
     .arg("-c")
     .arg(cmd)
     .stdout(Stdio::piped())

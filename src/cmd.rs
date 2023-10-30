@@ -19,28 +19,6 @@ impl Cmd {
 
 static REGEX: Mutex<OnceCell<Regex>> = Mutex::new(OnceCell::new());
 
-// TODO: I think it's probably not that hard to parse comments.
-//       A string like this would be valid:
-//       .-.-.- #asdasd
-//       Since it has a sequence but the command is simply a comment
-/*
-I just verified it (using this conf:  .-.- #asdasd):
-
-[2023-10-25 04:48:26] #asdasd
-Done in 0s
-[2023-10-25 04:48:26] #asdasd
-Done in 0s
-
-So there are two cases (although I'd prefer to use one big generic regex)
-it starts with a sequence (the rest can be a command or comment, whatever)
-The first thing is the sequence
-
-TODO: It's done, but it's a bit unstable since as soon as I modify the grammar of the command config file
-      it'll break. So maybe implement some advanced parsing technique or whatever.
-      Or maybe just one regex would do, but I'd like to test it more.
-      For now leave it as is, and then remove this TODO if it doesn't seem too urgent.
-*/
-
 fn match_line(line: &str) -> Option<(&str, &str)> {
   let guard = REGEX.lock().unwrap();
   let re = guard.get_or_init(|| Regex::new(r"^\s*([.-]+)\s+(.+)$").unwrap());
