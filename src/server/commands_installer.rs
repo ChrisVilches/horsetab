@@ -20,7 +20,6 @@ pub fn read_lines_or_create(file_path: &str) -> Result<Vec<String>, std::io::Err
     .collect::<Result<Vec<String>, std::io::Error>>()
 }
 
-// TODO: Write unit tests.
 fn parse_lines(lines: &[&str]) -> (Vec<Cmd>, Vec<String>) {
   let mut commands = vec![];
   let mut non_commands = vec![];
@@ -113,8 +112,6 @@ impl ToString for InstallResult {
 }
 
 // TODO: In order to stabilize the config file grammar, I should write unit tests for this function.
-// TODO: Note, "syntax error" is no longer used, since any syntax works (non morse-sequence commands are
-//       handled as normal shell commands.)
 // TODO: Write unit tests of the whole thing.
 pub fn install_commands(
   config_path: &str,
@@ -152,6 +149,7 @@ pub fn install_commands(
 #[cfg(test)]
 mod tests {
   use super::*;
+  use test_case::test_case;
 
   #[test]
   fn test_get_unreachable_sequences_all_ok() {
@@ -180,60 +178,65 @@ mod tests {
     assert!(get_unreachable_sequences(&["a", "a"]).is_empty());
   }
 
-  // TODO: Rewrite these unit tests with the new logic.
-
-  /*
   #[test]
-  fn test_read_multiple_empty_lines() {
-    let cmd = lines_to_commands(&vec![" ", "   ", " "]);
-    assert!(cmd.is_ok());
-    assert!(cmd.unwrap().is_empty());
+  fn test_parse_lines_multiple_empty_lines() {
+    let (cmds, other) = parse_lines(&vec![" ", "   ", " "]);
+    assert!(cmds.is_empty());
+    assert!(other.is_empty());
   }
 
   #[test]
-  fn test_read_with_comments() {
-    let cmd = lines_to_commands(&vec![" #", "  # .-.- aa ", "#", " #.-."]);
-    assert!(cmd.is_ok());
-    assert!(cmd.unwrap().is_empty());
+  fn test_parse_lines_with_comments() {
+    let (cmds, other) = parse_lines(&vec![" #", "  # .-.- aa ", "#", " #.-."]);
+    assert!(cmds.is_empty());
+    assert!(other.is_empty());
   }
 
   #[test]
-  fn test_read_with_comments_2() {
-    let result = lines_to_commands(&vec![".-.-  #"]).unwrap();
-    assert_eq!(result.len(), 1);
-    assert_eq!(result[0].sequence, ".-.-");
-    assert_eq!(result[0].command, "#");
+  fn test_parse_lines_with_comments_2() {
+    let (cmds, other) = parse_lines(&vec![".-.-  #"]);
+
+    assert!(other.is_empty());
+    assert_eq!(cmds.len(), 1);
+    assert_eq!(cmds[0].sequence, ".-.-");
+    assert_eq!(cmds[0].command, "#");
   }
 
-  #[test]
-  fn test_read_with_comments_bad_format() {
-    assert!(lines_to_commands(&vec!["  .-.#"]).is_err());
-    assert!(lines_to_commands(&vec!["  .#"]).is_err());
-    assert!(lines_to_commands(&vec![".#"]).is_err());
+  #[test_case("  .-.#a")]
+  #[test_case("  .#b")]
+  #[test_case(".#c")]
+  #[test_case(" aaa  ")]
+  #[test_case(" . source_something")]
+  #[test_case("  something ")]
+  fn test_parse_lines_with_non_morse_command(line: &str) {
+    let (cmds, other) = parse_lines(&vec![line]);
+    assert!(cmds.is_empty());
+    assert_eq!(other.len(), 1);
   }
 
-  #[test]
-  fn test_read_wrong_lines() {
-    let cmd = lines_to_commands(&vec![" ", "  x ", " "]);
-    assert!(cmd.is_err());
-    assert_eq!(
-      cmd.err().unwrap().to_string(),
-      "Some commands have incorrect format"
-    );
-  }
+  #[test_case(&[" .- x ", " . xyz ", " .--  yyy"], &[".-", ".--"], &["x", "yyy"], &[". xyz"])]
+  #[test_case(&[" #.- x ", " . xyz ", " .--  yyy"], &[".--"], &["yyy"], &[". xyz"])]
+  #[test_case(&[" . abc ", " hello ", " # world", " .-.- cmd "], &[".-.-"], &["cmd"], &[". abc", "hello"])]
+  fn test_parse_lines(
+    lines: &[&str],
+    expected_seq: &[&str],
+    expected_cmd: &[&str],
+    expected_other: &[&str],
+  ) {
+    let (cmds, other) = parse_lines(lines);
 
-  #[test]
-  fn test_read_commands_ok() {
-    let result = lines_to_commands(&vec![" .- x ", " . xyz ", " .--  yyy"]);
-    assert!(result.is_ok());
-    let cmd = result.unwrap();
-    assert_eq!(cmd.len(), 3);
-    assert_eq!(cmd[0].sequence, ".-");
-    assert_eq!(cmd[1].sequence, ".");
-    assert_eq!(cmd[2].sequence, ".--");
-    assert_eq!(cmd[0].command, "x");
-    assert_eq!(cmd[1].command, "xyz");
-    assert_eq!(cmd[2].command, "yyy");
+    let result_seq = cmds
+      .iter()
+      .map(|c| c.sequence.to_owned())
+      .collect::<Vec<String>>();
+
+    let result_cmd = cmds
+      .iter()
+      .map(|c| c.command.to_owned())
+      .collect::<Vec<String>>();
+
+    assert_eq!(result_seq, expected_seq);
+    assert_eq!(result_cmd, expected_cmd);
+    assert_eq!(other, expected_other);
   }
-  */
 }

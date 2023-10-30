@@ -2,8 +2,6 @@ pub fn clean_command_lines<'a, I>(lines: I) -> Vec<String>
 where
   I: Iterator<Item = &'a str>,
 {
-  // TODO: The line regarding comments was removed (in order to allow the "shebang")
-  //       was this OK?? review. HOPEFULLY UNIT TEST.
   lines
     .map(|line| line.trim().to_owned())
     .filter(|line| !line.is_empty())
@@ -44,10 +42,9 @@ pub fn parse_shebang_or_default(text: &str, default: &[&str]) -> Vec<String> {
       .map(std::borrow::ToOwned::to_owned)
       .collect()
   } else {
-    // TODO: I don't want to use two maps with to_owned.
     default
-      .iter()
-      .map(std::borrow::ToOwned::to_owned)
+      .into_iter()
+      .copied()
       .map(std::borrow::ToOwned::to_owned)
       .collect()
   }
@@ -57,6 +54,15 @@ pub fn parse_shebang_or_default(text: &str, default: &[&str]) -> Vec<String> {
 mod tests {
   use super::*;
   use test_case::test_case;
+
+  #[test_case("  hello  \n world   ", &["hello", "world"])]
+  #[test_case(" # hello  \n world   ", &["world"])]
+  #[test_case(" #!  shebang \n # hello  \n world   ", &["#!  shebang", "world"])]
+  #[test_case(" #!  sh -c \n # hello  \n .-.- world   ", &["#!  sh -c", ".-.- world"])]
+  #[test_case(" #!  \n # hello  \n world   ", &["#!", "world"])]
+  fn test_clean_command_lines(text: &str, expected: &[&str]) {
+    assert_eq!(clean_command_lines(text.lines()), expected);
+  }
 
   #[test_case("hello\nworldxxx", 11, b'a', "hello\nworld")]
   #[test_case("\nhello\n\nworld", 13, b'\n', "hello\nworld")]

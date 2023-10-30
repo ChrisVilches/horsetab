@@ -11,16 +11,6 @@ fn seconds_elapsed_since(date_time: DateTime<Local>) -> i64 {
   Local::now().timestamp() - date_time.timestamp()
 }
 
-// TODO: If I implement it like this, then I could extract the shebang from the first line
-//       and call the shell accordingly. Is that too complex to manage????
-//       I'd have to write down the full specifications. such as...
-//       * It executes the entire script everytime a command is trigger
-//       * It attemps to read the first line (shebang)
-//       * Etc....
-//       NOTE: implemented. Test, review, etc.
-//       Also document (explain how all of this is executed). This can be in the readme, config file section
-//       (explain what can be done in that section).
-//       Also explain that the line cannot begin with a dot, so "source" must be "source" and not "."
 pub fn spawn_process(pre_cmd: &str, cmd: &str) -> Result<()> {
   let start_time = Local::now();
 

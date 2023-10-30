@@ -42,7 +42,7 @@ mod tests {
   #[test]
   fn test_match_line() {
     assert_eq!(match_line("  .-.- x"), Some((".-.-", "x")));
-    assert_eq!(match_line("  .  yx   "), Some((".", "yx")));
+    assert_eq!(match_line("  ..  yx   "), Some(("..", "yx")));
     assert_eq!(match_line("    yx   "), None);
     assert_eq!(match_line("    yx  ..--  "), None);
     assert_eq!(match_line(" .-.-x.- xxx "), None);
@@ -57,6 +57,10 @@ mod tests {
     );
     assert_eq!(
       Cmd::parse(" .-.x-  x ").err().unwrap().to_string(),
+      "Some commands have incorrect format"
+    );
+    assert_eq!(
+      Cmd::parse(" . x ").err().unwrap().to_string(),
       "Some commands have incorrect format"
     );
   }
