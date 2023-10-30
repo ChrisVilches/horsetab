@@ -2,24 +2,26 @@
 
 Trigger Linux/Unix commands via morse code using your mouse.
 
-## Example Usage
+## Overview
 
-Create a configuration file similar to crontab:
+Similar to crontab, you need to configure the commands like this:
 
 ```
 .-.-.--- /home/user/some_script.sh
 ...- /home/user/another_script.sh > /dev/null 2>&1
 ```
 
+After saving, you are ready to start sending sequences using your mouse.
+
 ## Install Using Cargo
 
-Install using Cargo from [crates.io](https://crates.io/crates/horsetab) using the following command.
+Install using Cargo from [crates.io](https://crates.io/crates/horsetab) using the following command:
 
 ```sh
 cargo install horsetab
 ```
 
-Then, verify installation.
+Then, verify installation:
 
 ```sh
 horsetab --version
