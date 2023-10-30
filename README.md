@@ -61,7 +61,7 @@ Configuration can be done by executing:
 horsetab edit
 ```
 
-See an [./assets/default_config.conf](example).
+See an [example](./assets/default_config.conf).
 
 ## Troubleshooting
 
