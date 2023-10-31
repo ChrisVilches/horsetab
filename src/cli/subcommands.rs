@@ -19,13 +19,7 @@ pub fn show_subcommand(port: u32, raw: bool) -> Result<String> {
       if raw {
         Ok(text)
       } else {
-        let cmds = text
-          .split('\n')
-          .filter(|s| !s.is_empty())
-          .map(|s| Cmd::parse(s).expect("Should have correct format"))
-          .collect::<Vec<Cmd>>();
-
-        Ok(format_commands_list(&cmds))
+        Ok(format_commands(&text))
       }
     }
     Err(_) => current_config,
@@ -46,9 +40,11 @@ pub fn edit_subcommand(port: u32) -> Result<String> {
   api_client::reinstall_commands(port, &new_content)
 }
 
-fn format_commands_list(commands: &[Cmd]) -> String {
-  commands
-    .iter()
+fn format_commands(commands_text: &str) -> String {
+  commands_text
+    .split('\n')
+    .filter(|s| !s.is_empty())
+    .map(|s| Cmd::parse(s).expect("Should have correct format"))
     .map(|cmd| format!("{}\t{}", cmd.sequence.yellow().bold(), cmd.command))
     .collect::<Vec<String>>()
     .join("\n")

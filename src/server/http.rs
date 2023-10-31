@@ -54,11 +54,12 @@ fn reinstall_config(
   config_path: &str,
   automata: &Mutex<SequenceAutomata>,
   commands: &Mutex<Vec<Cmd>>,
-  pre_cmd: &Mutex<String>,
+  shell_script: &Mutex<String>,
+  interpreter: &Mutex<Vec<String>>,
 ) -> Result<Response> {
   let new_content = get_body_as_string(request)?;
   update_config_file(config_path, &new_content)?;
-  let install_result = install_commands(config_path, automata, commands, pre_cmd);
+  let install_result = install_commands(config_path, automata, commands, shell_script, interpreter);
 
   if let InstallResult::FileError(err) = install_result {
     bail!(err);
@@ -104,6 +105,7 @@ fn send_sequence(
   Ok(Response::empty_204())
 }
 
+#[allow(clippy::too_many_lines)]
 fn build_http_server(
   port: u32,
   config_path: &str,
@@ -111,7 +113,8 @@ fn build_http_server(
   event_subscriber: Arc<Mutex<EventSubscriber>>,
   automata: Arc<Mutex<SequenceAutomata>>,
   commands: Arc<Mutex<Vec<Cmd>>>,
-  pre_cmd: Arc<Mutex<String>>,
+  shell_script: Arc<Mutex<String>>,
+  interpreter: Arc<Mutex<Vec<String>>>,
 ) -> Result<Server<impl Fn(&Request) -> Response>, Box<dyn Error + Send + Sync>> {
   let config_path_clone = config_path.to_owned();
 
@@ -124,9 +127,14 @@ fn build_http_server(
       ("GET", "/current-installed-commands") => get_current_installed_commands(&commands),
       ("POST", "/observe-sequences") => watch_sequences(request, &event_subscriber),
       ("POST", "/send-sequence") => send_sequence(request, &sequence_sender),
-      ("PUT", "/re-install") => {
-        reinstall_config(request, &config_path_clone, &automata, &commands, &pre_cmd)
-      }
+      ("PUT", "/re-install") => reinstall_config(
+        request,
+        &config_path_clone,
+        &automata,
+        &commands,
+        &shell_script,
+        &interpreter,
+      ),
       _ => Ok(Response::text("Not found").with_status_code(404)),
     };
 
@@ -134,6 +142,7 @@ fn build_http_server(
   })
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn start_http_server(
   port: u32,
   config_path: &str,
@@ -141,7 +150,8 @@ pub fn start_http_server(
   event_subscriber: Arc<Mutex<EventSubscriber>>,
   automata: Arc<Mutex<SequenceAutomata>>,
   commands: Arc<Mutex<Vec<Cmd>>>,
-  pre_cmd: Arc<Mutex<String>>,
+  shell_script: Arc<Mutex<String>>,
+  interpreter: Arc<Mutex<Vec<String>>>,
 ) {
   match build_http_server(
     port,
@@ -150,7 +160,8 @@ pub fn start_http_server(
     event_subscriber,
     automata,
     commands,
-    pre_cmd,
+    shell_script,
+    interpreter,
   ) {
     Ok(server) => {
       println!("Listening on {:?}", server.server_addr());

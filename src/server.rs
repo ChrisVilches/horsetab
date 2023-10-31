@@ -1,5 +1,6 @@
 mod automata_manager;
 mod commands_installer;
+mod config_file_parser;
 mod event_observe;
 mod http;
 pub mod main;

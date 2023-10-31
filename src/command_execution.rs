@@ -1,24 +1,16 @@
-use crate::{
-  constants::DEFAULT_INTERPRETER,
-  logger::{log_stderr, log_stdout},
-  util::parse_shebang_or_default,
-};
+use crate::logger::{log_stderr, log_stdout};
 use anyhow::{Context, Result};
 use chrono::{DateTime, Local};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 
 fn seconds_elapsed_since(date_time: DateTime<Local>) -> i64 {
   Local::now().timestamp() - date_time.timestamp()
 }
 
-pub fn spawn_process(pre_cmd: &str, cmd: &str) -> Result<()> {
-  let start_time = Local::now();
+fn create_child(interpreter: &Vec<String>, shell_script: &str, cmd: &str) -> Result<Child> {
+  let full_command = format!("{shell_script}\n{cmd}");
 
-  let full_command = format!("{pre_cmd}\n{cmd}");
-
-  let interpreter = parse_shebang_or_default(pre_cmd, &DEFAULT_INTERPRETER);
-
-  let mut child = Command::new(&interpreter[0])
+  Command::new(&interpreter[0])
     .args(&interpreter[1..])
     .arg(&full_command)
     .stdout(Stdio::piped())
@@ -26,17 +18,20 @@ pub fn spawn_process(pre_cmd: &str, cmd: &str) -> Result<()> {
     .spawn()
     .with_context(|| {
       format!("Cannot execute command using {interpreter:?}.\nCommand(s) executed: {full_command}")
-    })?;
+    })
+}
+
+pub fn spawn_process(interpreter: &Vec<String>, shell_script: &str, cmd: &str) -> Result<()> {
+  let start_time = Local::now();
+
+  let mut child = create_child(interpreter, shell_script, cmd)?;
 
   let status = child.wait().expect("Should wait child");
 
   let elapsed_sec = seconds_elapsed_since(start_time);
 
-  let stdout = child.stdout.unwrap();
-  let stderr = child.stderr.unwrap();
-
-  log_stdout(stdout, cmd, status, start_time, elapsed_sec);
-  log_stderr(stderr, cmd, status, start_time, elapsed_sec);
+  log_stdout(child.stdout.unwrap(), cmd, status, start_time, elapsed_sec);
+  log_stderr(child.stderr.unwrap(), cmd, status, start_time, elapsed_sec);
 
   Ok(())
 }

@@ -1,68 +1,24 @@
-pub fn clean_command_lines<'a, I>(lines: I) -> Vec<String>
-where
-  I: Iterator<Item = &'a str>,
-{
-  lines
-    .map(|line| line.trim().to_owned())
-    .filter(|line| !line.is_empty())
-    .filter(|line| line.starts_with("#!") || !line.starts_with('#'))
-    .collect()
-}
-
 pub fn effectful_format_bytes_merge_newlines(string: &mut [u8], n: usize, prev_char: u8) -> &[u8] {
   let mut j = 0;
   let mut last_was_newline = false;
   for i in 0..n {
-    if string[i] == b'\n' {
-      if !last_was_newline {
-        string[j] = b'\n';
-        j += 1;
-      }
-      last_was_newline = true;
-    } else {
+    if string[i] != b'\n' || !last_was_newline {
       string[j] = string[i];
       j += 1;
-      last_was_newline = false;
     }
-  }
 
+    last_was_newline = string[i] == b'\n';
+  }
   let leading_extra_newline = n > 0 && prev_char == string[0] && prev_char == b'\n';
   let start = usize::from(leading_extra_newline);
 
   &string[start..j]
 }
 
-pub fn parse_shebang_or_default(text: &str, default: &[&str]) -> Vec<String> {
-  let trimmed = text.trim();
-
-  if trimmed.starts_with("#!") {
-    trimmed.split('\n').next().unwrap()[2..]
-      .split(' ')
-      .filter(|s| !s.is_empty())
-      .map(std::borrow::ToOwned::to_owned)
-      .collect()
-  } else {
-    default
-      .into_iter()
-      .copied()
-      .map(std::borrow::ToOwned::to_owned)
-      .collect()
-  }
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;
   use test_case::test_case;
-
-  #[test_case("  hello  \n world   ", &["hello", "world"])]
-  #[test_case(" # hello  \n world   ", &["world"])]
-  #[test_case(" #!  shebang \n # hello  \n world   ", &["#!  shebang", "world"])]
-  #[test_case(" #!  sh -c \n # hello  \n .-.- world   ", &["#!  sh -c", ".-.- world"])]
-  #[test_case(" #!  \n # hello  \n world   ", &["#!", "world"])]
-  fn test_clean_command_lines(text: &str, expected: &[&str]) {
-    assert_eq!(clean_command_lines(text.lines()), expected);
-  }
 
   #[test_case("hello\nworldxxx", 11, b'a', "hello\nworld")]
   #[test_case("\nhello\n\nworld", 13, b'\n', "hello\nworld")]
@@ -81,16 +37,5 @@ mod tests {
 
     let result = effectful_format_bytes_merge_newlines(slice, len, prev_char);
     assert_eq!(String::from_utf8_lossy(result), expected);
-  }
-
-  #[test_case("#!/bin/zsh -c\nhello, some text", &["/usr/bin/env", "python3", "-c"], &["/bin/zsh", "-c"])]
-  #[test_case("   #!/bin/zsh -c\nhello world", &["/usr/bin/env", "python3", "-c"], &["/bin/zsh", "-c"])]
-  #[test_case("   #!  /bin/zsh -c\nhello", &["/usr/bin/env", "python3", "-c"], &["/bin/zsh", "-c"])]
-  #[test_case("   #!  /bin/zsh  -c  \nworld", &["/usr/bin/env", "python3", "-c"], &["/bin/zsh", "-c"])]
-  #[test_case(" # /bin/zsh  -c \n default", &["/usr/bin/env", "python3", "-c"], &["/usr/bin/env", "python3", "-c"])]
-  #[test_case(" empty ", &["/usr/bin/env", "python3", "-c"], &["/usr/bin/env", "python3", "-c"])]
-  #[test_case("hello, some text", &["bash", "-c"], &["bash", "-c"])]
-  fn test_parse_shebang_or_default(text: &str, default: &[&str], expected: &[&str]) {
-    assert_eq!(parse_shebang_or_default(text, default), expected);
   }
 }

@@ -15,13 +15,14 @@ use super::{
 
 use std::sync::mpsc;
 
+#[allow(clippy::too_many_lines)]
 pub fn start(port: u32, config_path: &str) {
   let (sequence_sender, sequence_rec) = mpsc::channel();
   let (results_sender, results_rec) = mpsc::channel::<usize>();
 
   let commands = Arc::new(Mutex::new(Vec::<Cmd>::new()));
 
-  let pre_cmd = Arc::new(Mutex::new(String::new()));
+  let shell_script = Arc::new(Mutex::new(String::new()));
 
   let automata = Arc::new(Mutex::new(SequenceAutomata::new(&[""])));
 
@@ -29,7 +30,15 @@ pub fn start(port: u32, config_path: &str) {
 
   println!("Config file path: {config_path}");
 
-  let install_result = install_commands(config_path, &automata, &commands, &pre_cmd);
+  let interpreter = Arc::new(Mutex::new(Vec::new()));
+
+  let install_result = install_commands(
+    config_path,
+    &automata,
+    &commands,
+    &shell_script,
+    &interpreter,
+  );
 
   println!("{}", install_result.to_string());
 
@@ -55,7 +64,9 @@ pub fn start(port: u32, config_path: &str) {
   //       That reuses the power of sh/bash/dash/zsh/etc.
 
   std::thread::scope(|scope| {
-    scope.spawn(|| listen_results_execute_command(&pre_cmd, &commands, results_rec));
+    scope.spawn(|| {
+      listen_results_execute_command(&interpreter, &shell_script, &commands, results_rec);
+    });
     scope.spawn(|| {
       manage_automata(
         &automata,
@@ -73,7 +84,8 @@ pub fn start(port: u32, config_path: &str) {
         Arc::new(Mutex::new(event_subscriber)),
         Arc::clone(&automata),
         Arc::clone(&commands),
-        Arc::clone(&pre_cmd),
+        Arc::clone(&shell_script),
+        Arc::clone(&interpreter),
       );
     });
   });

@@ -40,7 +40,11 @@ pub enum Commands {
     #[arg(short, long, default_value_t = DEFAULT_PORT)]
     port: u32,
 
-    #[arg(short, long)]
+    #[arg(
+      short,
+      long,
+      help = "A morse sequence (use `-s=--` to avoid treating `--` as end of options)"
+    )]
     sequence: String,
   },
 
@@ -71,27 +75,31 @@ fn match_cli_subcommand(command: &Commands) -> Result<String> {
   }
 }
 
+fn handle_subcommand_result(subcommand_result: Result<String, anyhow::Error>) {
+  match subcommand_result {
+    Ok(msg) => {
+      if !msg.is_empty() {
+        println!("{msg}");
+      }
+    }
+    Err(err) => {
+      let err_msg = err.to_string();
+
+      if !err_msg.is_empty() {
+        eprintln!("{}", err_msg.red());
+      }
+
+      std::process::exit(1);
+    }
+  }
+}
+
 pub fn start_cli_app() {
   let cli = Cli::parse();
 
   if let Some(command) = &cli.command {
     let subcommand_result = match_cli_subcommand(command);
 
-    match subcommand_result {
-      Ok(msg) => {
-        if !msg.is_empty() {
-          println!("{msg}");
-        }
-      }
-      Err(err) => {
-        let err_msg = err.to_string();
-
-        if !err_msg.is_empty() {
-          eprintln!("{}", err_msg.red());
-        }
-
-        std::process::exit(1);
-      }
-    }
+    handle_subcommand_result(subcommand_result);
   }
 }

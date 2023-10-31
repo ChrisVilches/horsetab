@@ -34,14 +34,22 @@ impl EventNotifier {
     }
   }
 
-  fn notify(&mut self, event: EventType) {
-    let content = event.to_string();
+  fn remove(&self, remove_files: &[String]) {
+    let mut observers = self.observers.lock().unwrap();
+    for file_to_remove in remove_files {
+      observers.remove(file_to_remove);
+      if let Err(err) = fs::remove_file(file_to_remove) {
+        eprintln!("Error while removing file: {err}");
+      }
+    }
+  }
 
+  fn notify_all(&mut self, content: &String) -> Vec<String> {
     let mut remove_files = Vec::<String>::new();
 
     let mut observers = self.observers.lock().unwrap();
 
-    for (file_name, mut file) in &*observers {
+    for (file_name, file) in &mut *observers {
       let result = file.write(content.as_bytes());
 
       if let Err(err) = result {
@@ -49,17 +57,19 @@ impl EventNotifier {
           std::io::ErrorKind::BrokenPipe => {}
           e => eprintln!("Unhandled error while notifying: {e}"),
         }
-
         remove_files.push(file_name.clone());
       }
     }
 
-    for file_to_remove in remove_files {
-      observers.remove(&file_to_remove);
-      if let Err(err) = fs::remove_file(file_to_remove) {
-        eprintln!("Error while removing file: {err}");
-      }
-    }
+    remove_files
+  }
+
+  fn notify(&mut self, event: EventType) {
+    let content = event.to_string();
+
+    let remove_files = self.notify_all(&content);
+
+    self.remove(&remove_files);
   }
 }
 
