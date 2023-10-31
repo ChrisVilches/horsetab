@@ -95,7 +95,7 @@ pub fn watch_sequences_subcommand(port: u32) -> Result<String> {
 
   let child_stdout = get_file_stdout_stream(&path)?;
 
-  api_client::watch_sequences(port, &path).unwrap();
+  api_client::watch_sequences(port, &path)?;
 
   print_from_buf_reader(child_stdout, std::io::stdout());
 
