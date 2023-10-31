@@ -4,9 +4,9 @@ Trigger Linux/Unix commands via morse code using your mouse.
 
 ## Overview
 
-Similar to crontab, you need to configure the commands like this:
+Similar to crontab, commands are configured in a file like this:
 
-```
+```sh
 .-.-.--- /home/user/some_script.sh
 ...- /home/user/another_script.sh > /dev/null 2>&1
 ```
