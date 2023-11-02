@@ -41,13 +41,7 @@ You need to manually turn it into a background process and manage stdout/stderr 
 nohup horsetab serve >> stdout.log 2>> stderr.log &
 ```
 
-Edit commands (signals daemon to refresh the commands):
-
-```sh
-horsetab edit
-```
-
-Or show the help message to learn more:
+Show the help message to learn more:
 
 ```sh
 horsetab --help
@@ -78,9 +72,9 @@ MY_USER=$(whoami)
 
 # Define commands
 # Start with a morse sequence (at least two characters)
-# After the sequence, add the command to execute
 # .   -->  short click
 # -   -->  long click
+# After the sequence, add the command to execute
 
 .-.-.- some_sourced_alias
 ...---- another_command.sh > /dev/null 2>&1
