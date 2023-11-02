@@ -1,25 +1,22 @@
+use super::global_context::MainProcessState;
+use std::sync::mpsc::Receiver;
 use std::sync::Mutex;
 
-use std::sync::mpsc::Receiver;
-
-use crate::{cmd::Cmd, command_execution::spawn_process};
-
 pub fn listen_results_execute_command(
-  interpreter: &Mutex<Vec<String>>,
-  shell_script: &Mutex<String>,
-  commands: &Mutex<Vec<Cmd>>,
   results_rec: Receiver<usize>,
+  state: &Mutex<MainProcessState>,
 ) {
   for result_id in results_rec {
-    let cmd = &commands.lock().unwrap()[result_id].command;
+    let state_guard = state.lock().unwrap();
 
-    let process_result = spawn_process(
-      &interpreter.lock().unwrap(),
-      &shell_script.lock().unwrap(),
-      cmd,
-    );
+    let cmd = state_guard.commands[result_id].command.clone();
 
-    if let Err(e) = process_result {
+    let start_result =
+      state_guard
+        .process_manager
+        .start(&state_guard.interpreter, &state_guard.pre_script, &cmd);
+
+    if let Err(e) = start_result {
       eprintln!("{e}");
     }
   }

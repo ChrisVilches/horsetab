@@ -1,3 +1,11 @@
+use anyhow::Result;
+use chrono::{
+  format::{DelayedFormat, StrftimeItems},
+  DateTime, Local,
+};
+use std::fs::OpenOptions;
+use std::io::{BufRead, BufReader};
+
 pub fn effectful_format_bytes_merge_newlines(string: &mut [u8], n: usize, prev_char: u8) -> &[u8] {
   let mut j = 0;
   let mut last_was_newline = false;
@@ -13,6 +21,28 @@ pub fn effectful_format_bytes_merge_newlines(string: &mut [u8], n: usize, prev_c
   let start = usize::from(leading_extra_newline);
 
   &string[start..j]
+}
+
+pub fn format_date<'a>(date: DateTime<Local>) -> DelayedFormat<StrftimeItems<'a>> {
+  date.format("%Y-%m-%d %H:%M:%S")
+}
+
+pub fn seconds_elapsed_since(date_time: DateTime<Local>) -> i64 {
+  Local::now().timestamp() - date_time.timestamp()
+}
+
+pub fn read_lines_or_create(file_path: &str) -> Result<Vec<String>, std::io::Error> {
+  let file = OpenOptions::new()
+    .create(true)
+    .read(true)
+    .write(true)
+    .open(file_path)?;
+
+  let reader = BufReader::new(file);
+
+  reader
+    .lines()
+    .collect::<Result<Vec<String>, std::io::Error>>()
 }
 
 #[cfg(test)]

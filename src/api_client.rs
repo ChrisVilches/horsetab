@@ -18,6 +18,14 @@ pub fn reinstall_commands(port: u32, new_content: &str) -> Result<String> {
   }
 }
 
+pub fn get_ps(port: u32) -> Result<String> {
+  Ok(
+    reqwest::blocking::get(build_url(port, "ps"))?
+      .error_for_status()?
+      .text()?,
+  )
+}
+
 pub fn get_current_config(port: u32) -> Result<String> {
   let res =
     reqwest::blocking::get(build_url(port, "current-config-file-content"))?.error_for_status()?;

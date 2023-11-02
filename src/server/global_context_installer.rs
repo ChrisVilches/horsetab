@@ -1,25 +1,7 @@
-use crate::cmd::Cmd;
-use crate::sequence_automata::SequenceAutomata;
-use anyhow::Result;
-use std::fs::OpenOptions;
-use std::io::{BufRead, BufReader};
-use std::sync::Mutex;
-
 use super::config_file_parser::Configuration;
-
-pub fn read_lines_or_create(file_path: &str) -> Result<Vec<String>, std::io::Error> {
-  let file = OpenOptions::new()
-    .create(true)
-    .read(true)
-    .write(true)
-    .open(file_path)?;
-
-  let reader = BufReader::new(file);
-
-  reader
-    .lines()
-    .collect::<Result<Vec<String>, std::io::Error>>()
-}
+use super::global_context::MainProcessState;
+use crate::sequence_automata::SequenceAutomata;
+use crate::util::read_lines_or_create;
 
 pub enum InstallResult {
   Ok(usize),
@@ -38,6 +20,8 @@ impl ToString for InstallResult {
       //       failed to be parsed did change.
       //       In simpler words: it's necessary to check if the file (string) changed, not the Vec<Cmd> result
       //       to avoid a wrong result.
+      //       UPDATE: This is even more important now because the config file can have any arbitrary script
+      //               so the Vec<Cmd> is obviously not the only thing that'd need to be checked if it changed or not.
       // Self::NoChange => "No modification made"
       Self::Unreachable((count, sequences)) => {
         let mut text = format!("Installed {count} commands, with some unreachable sequence(s):");
@@ -54,26 +38,14 @@ impl ToString for InstallResult {
   }
 }
 
-fn assign_global_state(
-  config: Configuration,
-  automata: &Mutex<SequenceAutomata>,
-  commands: &Mutex<Vec<Cmd>>,
-  shell_script: &Mutex<String>,
-  interpreter: &Mutex<Vec<String>>,
-) {
-  *automata.lock().unwrap() = SequenceAutomata::new(&config.get_sequences());
-  *commands.lock().unwrap() = config.commands;
-  *shell_script.lock().unwrap() = config.shell_script;
-  *interpreter.lock().unwrap() = config.interpreter;
+fn assign_global_state(config: Configuration, state: &mut MainProcessState) {
+  state.automata = SequenceAutomata::new(&config.get_sequences());
+  state.commands = config.commands;
+  state.pre_script = config.pre_script;
+  state.interpreter = config.interpreter;
 }
 
-pub fn install_commands(
-  config_path: &str,
-  automata: &Mutex<SequenceAutomata>,
-  commands: &Mutex<Vec<Cmd>>,
-  shell_script: &Mutex<String>,
-  interpreter: &Mutex<Vec<String>>,
-) -> InstallResult {
+pub fn install_state_from_file(config_path: &str, state: &mut MainProcessState) -> InstallResult {
   match read_lines_or_create(config_path) {
     Ok(lines) => {
       let config = Configuration::from_lines(&lines);
@@ -81,7 +53,7 @@ pub fn install_commands(
       let total = config.commands.len();
       let unreachable_sequences = config.unreachable_sequences.clone();
 
-      assign_global_state(config, automata, commands, shell_script, interpreter);
+      assign_global_state(config, state);
 
       if unreachable_sequences.is_empty() {
         InstallResult::Ok(total)

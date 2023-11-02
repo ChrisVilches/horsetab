@@ -10,7 +10,7 @@ pub struct Configuration {
   pub interpreter: Vec<String>,
   pub commands: Vec<Cmd>,
   pub unreachable_sequences: Vec<String>,
-  pub shell_script: String,
+  pub pre_script: String,
 }
 
 fn parse_shebang_or_default(text: &str, default: &[&str]) -> Vec<String> {
@@ -87,7 +87,7 @@ fn get_unreachable_sequences(sequences: &[&str]) -> Vec<String> {
 
 impl Configuration {
   pub fn from_lines(lines: &[String]) -> Self {
-    let (commands, shell_script) = parse_lines(lines);
+    let (commands, pre_script) = parse_lines(lines);
 
     let sequences: Vec<&str> = pluck_sequence(&commands);
     let unreachable_sequences = get_unreachable_sequences(&sequences);
@@ -95,8 +95,8 @@ impl Configuration {
     Self {
       unreachable_sequences,
       commands,
-      interpreter: parse_shebang_or_default(&shell_script, &DEFAULT_INTERPRETER),
-      shell_script,
+      interpreter: parse_shebang_or_default(&pre_script, &DEFAULT_INTERPRETER),
+      pre_script,
     }
   }
 

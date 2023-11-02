@@ -1,5 +1,6 @@
 use super::subcommands::{
-  edit_subcommand, send_sequence_subcommand, show_subcommand, watch_sequences_subcommand,
+  edit_subcommand, ps_subcommand, send_sequence_subcommand, show_subcommand,
+  watch_sequences_subcommand,
 };
 use crate::{
   constants::{get_default_config_path, DEFAULT_PORT},
@@ -53,6 +54,12 @@ pub enum Commands {
     #[arg(short, long, default_value_t = DEFAULT_PORT)]
     port: u32,
   },
+
+  #[command(about = "Display status information about processes")]
+  Ps {
+    #[arg(short, long, default_value_t = DEFAULT_PORT)]
+    port: u32,
+  },
 }
 
 #[derive(Parser)]
@@ -72,6 +79,7 @@ fn match_cli_subcommand(command: &Commands) -> Result<String> {
     Commands::Show { port, raw } => show_subcommand(*port, *raw),
     Commands::SendSequence { port, sequence } => send_sequence_subcommand(*port, sequence),
     Commands::Watch { port } => watch_sequences_subcommand(*port),
+    Commands::Ps { port } => ps_subcommand(*port),
   }
 }
 

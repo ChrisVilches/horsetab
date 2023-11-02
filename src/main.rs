@@ -15,7 +15,6 @@ mod api_client;
 mod cli;
 mod click_sequence_detector;
 mod cmd;
-mod command_execution;
 mod constants;
 mod logger;
 mod sequence_automata;

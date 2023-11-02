@@ -1,8 +1,8 @@
-use crate::sequence_automata::{AutomataInstruction, SequenceAutomata};
+use super::event_observe::{EventNotifier, EventType};
+use super::global_context::MainProcessState;
+use crate::sequence_automata::AutomataInstruction;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Mutex;
-
-use super::event_observe::{EventNotifier, EventType};
 
 fn notify_event(event_notifier: &mut EventNotifier, instruction: AutomataInstruction) {
   event_notifier.notify_with(|| match instruction {
@@ -16,15 +16,17 @@ fn notify_success(event_notifier: &mut EventNotifier) {
 }
 
 pub fn manage_automata(
-  automata: &Mutex<SequenceAutomata>,
   results_sender: &Sender<usize>,
   sequence_rec: Receiver<AutomataInstruction>,
   event_notifier: &mut EventNotifier,
+  state: &Mutex<MainProcessState>,
 ) {
   for instruction in sequence_rec {
     notify_event(event_notifier, instruction);
 
-    if let Some(results) = automata.lock().unwrap().put(instruction) {
+    let put_result = state.lock().unwrap().automata.put(instruction);
+
+    if let Some(results) = put_result {
       notify_success(event_notifier);
 
       for result_id in results {

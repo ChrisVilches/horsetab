@@ -1,11 +1,10 @@
 use super::{
-  commands_installer::{install_commands, read_lines_or_create, InstallResult},
   event_observe::EventSubscriber,
+  global_context::MainProcessState,
+  global_context_installer::{install_state_from_file, InstallResult},
+  process_manager::ProcessManager,
 };
-use crate::{
-  cmd::Cmd,
-  sequence_automata::{AutomataInstruction, SequenceAutomata},
-};
+use crate::{cmd::Cmd, sequence_automata::AutomataInstruction, util::read_lines_or_create};
 use anyhow::{bail, Result};
 use rouille::{Request, Response, Server};
 use std::{
@@ -49,17 +48,14 @@ fn read_config_file(config_path: &str) -> Result<Response> {
   Ok(Response::text(content))
 }
 
-fn reinstall_config(
+fn reinstall(
   request: &Request,
   config_path: &str,
-  automata: &Mutex<SequenceAutomata>,
-  commands: &Mutex<Vec<Cmd>>,
-  shell_script: &Mutex<String>,
-  interpreter: &Mutex<Vec<String>>,
+  state: &mut MainProcessState,
 ) -> Result<Response> {
   let new_content = get_body_as_string(request)?;
   update_config_file(config_path, &new_content)?;
-  let install_result = install_commands(config_path, automata, commands, shell_script, interpreter);
+  let install_result = install_state_from_file(config_path, state);
 
   if let InstallResult::FileError(err) = install_result {
     bail!(err);
@@ -69,10 +65,8 @@ fn reinstall_config(
 }
 
 #[allow(clippy::unnecessary_wraps)]
-fn get_current_installed_commands(commands: &Mutex<Vec<Cmd>>) -> Result<Response> {
+fn curr_cmds(commands: &[Cmd]) -> Result<Response> {
   let current_commands_text = commands
-    .lock()
-    .unwrap()
     .iter()
     .map(|cmd| format!("{} {}", cmd.sequence, cmd.command))
     .collect::<Vec<String>>()
@@ -105,64 +99,41 @@ fn send_sequence(
   Ok(Response::empty_204())
 }
 
-#[allow(clippy::too_many_lines)]
+#[allow(clippy::unnecessary_wraps)]
+fn get_ps(process_manager: &ProcessManager) -> Result<Response> {
+  Ok(Response::text(process_manager.format_information()))
+}
+
 fn build_http_server(
   port: u32,
   config_path: &str,
   sequence_sender: Sender<AutomataInstruction>,
   event_subscriber: Arc<Mutex<EventSubscriber>>,
-  automata: Arc<Mutex<SequenceAutomata>>,
-  commands: Arc<Mutex<Vec<Cmd>>>,
-  shell_script: Arc<Mutex<String>>,
-  interpreter: Arc<Mutex<Vec<String>>>,
+  state: Arc<Mutex<MainProcessState>>,
 ) -> Result<Server<impl Fn(&Request) -> Response>, Box<dyn Error + Send + Sync>> {
-  let config_path_clone = config_path.to_owned();
+  let conf_path = config_path.to_owned();
 
-  Server::new(format!("0.0.0.0:{port}"), move |request| {
-    let method = request.method();
-    let url = request.url();
-
-    let response = match (method, url.as_ref()) {
-      ("GET", "/current-config-file-content") => read_config_file(&config_path_clone),
-      ("GET", "/current-installed-commands") => get_current_installed_commands(&commands),
-      ("POST", "/observe-sequences") => watch_sequences(request, &event_subscriber),
-      ("POST", "/send-sequence") => send_sequence(request, &sequence_sender),
-      ("PUT", "/re-install") => reinstall_config(
-        request,
-        &config_path_clone,
-        &automata,
-        &commands,
-        &shell_script,
-        &interpreter,
-      ),
+  Server::new(format!("0.0.0.0:{port}"), move |req| {
+    handle_response(match (req.method(), req.url().as_ref()) {
+      ("GET", "/current-config-file-content") => read_config_file(&conf_path),
+      ("GET", "/ps") => get_ps(&state.lock().unwrap().process_manager),
+      ("GET", "/current-installed-commands") => curr_cmds(&state.lock().unwrap().commands),
+      ("POST", "/observe-sequences") => watch_sequences(req, &event_subscriber),
+      ("POST", "/send-sequence") => send_sequence(req, &sequence_sender),
+      ("PUT", "/re-install") => reinstall(req, &conf_path, &mut state.lock().unwrap()),
       _ => Ok(Response::text("Not found").with_status_code(404)),
-    };
-
-    handle_response(response)
+    })
   })
 }
 
-#[allow(clippy::too_many_lines)]
 pub fn start_http_server(
   port: u32,
   config_path: &str,
   sequence_sender: Sender<AutomataInstruction>,
   event_subscriber: Arc<Mutex<EventSubscriber>>,
-  automata: Arc<Mutex<SequenceAutomata>>,
-  commands: Arc<Mutex<Vec<Cmd>>>,
-  shell_script: Arc<Mutex<String>>,
-  interpreter: Arc<Mutex<Vec<String>>>,
+  state: Arc<Mutex<MainProcessState>>,
 ) {
-  match build_http_server(
-    port,
-    config_path,
-    sequence_sender,
-    event_subscriber,
-    automata,
-    commands,
-    shell_script,
-    interpreter,
-  ) {
+  match build_http_server(port, config_path, sequence_sender, event_subscriber, state) {
     Ok(server) => {
       println!("Listening on {:?}", server.server_addr());
       server.run();

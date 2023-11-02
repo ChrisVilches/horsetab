@@ -26,6 +26,10 @@ pub fn show_subcommand(port: u32, raw: bool) -> Result<String> {
   }
 }
 
+pub fn ps_subcommand(port: u32) -> Result<String> {
+  api_client::get_ps(port)
+}
+
 pub fn edit_subcommand(port: u32) -> Result<String> {
   let current_config = api_client::get_current_config(port)?;
 

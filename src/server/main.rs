@@ -1,78 +1,53 @@
 use std::sync::{Arc, Mutex};
 
-use crate::{
-  cmd::Cmd,
-  sequence_automata::SequenceAutomata,
-  server::{
-    commands_installer::InstallResult, event_observe::make_event_observer, http::start_http_server,
-  },
+use crate::server::{
+  event_observe::make_event_observer,
+  global_context::MainProcessState,
+  global_context_installer::{install_state_from_file, InstallResult},
+  http::start_http_server,
 };
 
 use super::{
-  automata_manager::manage_automata, commands_installer::install_commands,
-  mouse_events::mouse_handler, results_command_exec::listen_results_execute_command,
+  automata_manager::manage_automata, mouse_events::mouse_handler,
+  results_command_exec::listen_results_execute_command,
 };
 
 use std::sync::mpsc;
 
-#[allow(clippy::too_many_lines)]
-pub fn start(port: u32, config_path: &str) {
-  let (sequence_sender, sequence_rec) = mpsc::channel();
-  let (results_sender, results_rec) = mpsc::channel::<usize>();
-
-  let commands = Arc::new(Mutex::new(Vec::<Cmd>::new()));
-
-  let shell_script = Arc::new(Mutex::new(String::new()));
-
-  let automata = Arc::new(Mutex::new(SequenceAutomata::new(&[""])));
-
-  let (event_subscriber, mut event_notifier) = make_event_observer();
-
+fn install(config_path: &str, state: &mut MainProcessState) {
   println!("Config file path: {config_path}");
 
-  let interpreter = Arc::new(Mutex::new(Vec::new()));
-
-  let install_result = install_commands(
-    config_path,
-    &automata,
-    &commands,
-    &shell_script,
-    &interpreter,
-  );
+  let install_result = install_state_from_file(config_path, state);
 
   println!("{}", install_result.to_string());
 
   if let InstallResult::FileError(_) = install_result {
     std::process::exit(1);
   }
+}
 
+#[allow(clippy::too_many_lines)]
+pub fn start(port: u32, config_path: &str) {
+  let (sequence_sender, sequence_rec) = mpsc::channel();
+  let (results_sender, results_rec) = mpsc::channel::<usize>();
   let sequence_sender_clone = sequence_sender.clone();
 
-  // TODO: Not 100% related to env variables, but it's related to https://github.com/ChrisVilches/horsetab/issues/7
-  //       I think I should create a method that reads a file into a struct that contains the following things:
-  //       (enum) Ok{ commands, env_variables, unreachable } or Error(Kind)
-  //       It's similar to what I already have, but it should parse an entire file and return that struct.
-  //       The warning of "unreachable" should be displayed, similar to what I have.
-  //       If there's at least ONE error, it should NOT install the commands, and should print the error.
-  //       - On `serve`, it should start with the error message, and don't install anything
-  //       - The `watch` command should show only the commands that are already installed, without parsing the file
-  //         again. In other words, don't read the file again, simply query the commands data structure that
-  //         already exists.
-  //
-  //       Related to envs... I'm gonna try the approach in which I remove all the ..-.-.- command lines, and
-  //       leave a file with only the non-command stuff, then execute that one along with each command.
-  //       That reuses the power of sh/bash/dash/zsh/etc.
+  let mut state = MainProcessState::new();
+
+  install(config_path, &mut state);
+
+  let main_process_state = Arc::new(Mutex::new(state));
+
+  let (event_subscriber, mut event_notifier) = make_event_observer();
 
   std::thread::scope(|scope| {
-    scope.spawn(|| {
-      listen_results_execute_command(&interpreter, &shell_script, &commands, results_rec);
-    });
+    scope.spawn(|| listen_results_execute_command(results_rec, &main_process_state));
     scope.spawn(|| {
       manage_automata(
-        &automata,
         &results_sender,
         sequence_rec,
         &mut event_notifier,
+        &main_process_state,
       );
     });
     scope.spawn(|| mouse_handler(sequence_sender));
@@ -82,10 +57,7 @@ pub fn start(port: u32, config_path: &str) {
         config_path,
         sequence_sender_clone,
         Arc::new(Mutex::new(event_subscriber)),
-        Arc::clone(&automata),
-        Arc::clone(&commands),
-        Arc::clone(&shell_script),
-        Arc::clone(&interpreter),
+        Arc::clone(&main_process_state),
       );
     });
   });
