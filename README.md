@@ -61,9 +61,11 @@ Here's a full example:
 #!/bin/sh
 # ^ Choose your shell
 
+####################
+#   Example File   #
+####################
+
 SOME_VARIABLE=1
-ANOTHER_VAR=2
-VAR_SUBSTITUTION=$ANOTHER_VAR
 MY_USER=$(whoami)
 
 # Source a file (containing aliases, variables, etc)
@@ -77,7 +79,7 @@ MY_USER=$(whoami)
 
 .-.-.- some_sourced_alias
 ...---- another_command.sh > /dev/null 2>&1
-..-..- echo "My user is $MY_USER and variable is $VAR_SUBSTITUTION"
+..-..- echo "My user is $MY_USER and variable is $SOME_VARIABLE"
 
 # Note: Do NOT conditionally define commands like this:
 # if CONDITION; then

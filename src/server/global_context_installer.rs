@@ -1,7 +1,7 @@
 use super::config_file_parser::Configuration;
 use super::global_context::MainProcessState;
 use crate::sequence_automata::SequenceAutomata;
-use crate::util::read_lines_or_create;
+use crate::util::{ensure_shebang, read_lines_or_create};
 
 pub enum InstallResult {
   Ok(usize),
@@ -31,7 +31,7 @@ impl ToString for InstallResult {
 fn assign_global_state(config: Configuration, state: &mut MainProcessState) {
   state.automata = SequenceAutomata::new(&config.get_sequences());
   state.commands = config.commands;
-  state.pre_script = config.pre_script;
+  state.pre_script = ensure_shebang(&config.pre_script);
 }
 
 pub fn install_state_from_file(config_path: &str, state: &mut MainProcessState) -> InstallResult {

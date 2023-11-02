@@ -1,3 +1,4 @@
+use crate::constants::DEFAULT_INTERPRETER;
 use anyhow::Result;
 use chrono::{
   format::{DelayedFormat, StrftimeItems},
@@ -49,11 +50,11 @@ pub fn read_lines_or_create(file_path: &str) -> Result<Vec<String>, std::io::Err
 }
 
 pub fn create_temp_file(
-  path_prefix: &str,
+  file_name_prefix: &str,
   content: &str,
   remove_after_seconds: u64,
 ) -> Result<String> {
-  let path = format!("/tmp/{path_prefix}-{}", nanoid::nanoid!());
+  let path = format!("/tmp/{file_name_prefix}-{}", nanoid::nanoid!());
 
   std::fs::OpenOptions::new()
     .create(true)
@@ -71,6 +72,20 @@ pub fn create_temp_file(
   });
 
   Ok(path)
+}
+
+pub fn ensure_shebang(file_content: &str) -> String {
+  let shebang = file_content
+    .split('\n')
+    .next()
+    .filter(|s| s.starts_with("#!"))
+    .filter(|s| s.len() > 2);
+
+  if shebang.is_some() {
+    file_content.to_owned()
+  } else {
+    format!("#!{DEFAULT_INTERPRETER}\n{file_content}")
+  }
 }
 
 #[cfg(test)]
@@ -95,5 +110,18 @@ mod tests {
 
     let result = effectful_format_bytes_merge_newlines(slice, len, prev_char);
     assert_eq!(String::from_utf8_lossy(result), expected);
+  }
+
+  #[test_case("hello", "#!/bin/sh\nhello")]
+  #[test_case("#!world", "#!world")]
+  #[test_case("#! hello", "#! hello")]
+  #[test_case("#!\nhello", "#!/bin/sh\n#!\nhello")]
+  #[test_case("#! \nhello", "#! \nhello")]
+  #[test_case("#hi", "#!/bin/sh\n#hi")]
+  #[test_case(" #!/bin/sh", "#!/bin/sh\n #!/bin/sh")]
+  #[test_case(" #!/bin/zsh\ntext", "#!/bin/sh\n #!/bin/zsh\ntext")]
+  #[test_case("#!/bin/zsh\ntext", "#!/bin/zsh\ntext")]
+  fn test_ensure_shebang(input: &str, expected: &str) {
+    assert_eq!(ensure_shebang(input), expected);
   }
 }

@@ -1,10 +1,9 @@
+use anyhow::{Context, Result};
+use chrono::{DateTime, Local};
 use std::{
   collections::HashSet,
   sync::{Arc, Mutex},
 };
-
-use anyhow::{Context, Result};
-use chrono::{DateTime, Local};
 use std::{
   io::BufReader,
   process::{Child, Command, ExitStatus, Stdio},
@@ -44,7 +43,7 @@ fn format_exit_status(exit_status: ExitStatus) -> String {
 }
 
 fn create_child(pre_script: &str, cmd: &str) -> Result<Child> {
-  let full_command = format!("{pre_script}\n{cmd}");
+  let full_command = format!("{pre_script}\n{cmd}\n");
 
   let temp_path = create_temp_file("horsetab-exec", &full_command, 10)?;
 
