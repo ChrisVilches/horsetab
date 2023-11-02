@@ -1,6 +1,6 @@
 [package]
 name = "horsetab"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2021"
 description = "Trigger Linux/Unix commands via morse code using your mouse."
 license = "MIT OR Apache-2.0"
