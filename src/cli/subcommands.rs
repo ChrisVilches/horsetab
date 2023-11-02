@@ -41,7 +41,11 @@ pub fn edit_subcommand(port: u32) -> Result<String> {
 
   let new_content = edit::edit(config_to_edit)?;
 
-  api_client::reinstall_commands(port, &new_content)
+  if new_content == current_config {
+    Ok("No modification made".to_owned())
+  } else {
+    api_client::reinstall_commands(port, &new_content)
+  }
 }
 
 fn format_commands(commands_text: &str) -> String {

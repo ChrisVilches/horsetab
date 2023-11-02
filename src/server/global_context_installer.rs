@@ -5,7 +5,6 @@ use crate::util::read_lines_or_create;
 
 pub enum InstallResult {
   Ok(usize),
-  // NoChange,
   Unreachable((usize, Vec<String>)),
   FileError(std::io::Error),
 }
@@ -14,15 +13,6 @@ impl ToString for InstallResult {
   fn to_string(&self) -> String {
     match self {
       Self::Ok(count) => format!("Installed {count} commands"),
-      // TODO: (NoChange) A bit harder to implement. The file contents have to be checked, not the Vec<Cmd>
-      //       because the Vec<Cmd> is clean and ignores the commands that failed to parse, so sometimes
-      //       "NoChange" would be returned simply because the Vec didn't change but maybe the commands that
-      //       failed to be parsed did change.
-      //       In simpler words: it's necessary to check if the file (string) changed, not the Vec<Cmd> result
-      //       to avoid a wrong result.
-      //       UPDATE: This is even more important now because the config file can have any arbitrary script
-      //               so the Vec<Cmd> is obviously not the only thing that'd need to be checked if it changed or not.
-      // Self::NoChange => "No modification made"
       Self::Unreachable((count, sequences)) => {
         let mut text = format!("Installed {count} commands, with some unreachable sequence(s):");
 
