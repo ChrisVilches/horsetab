@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
   logger::{log_stdout, redirect_output},
-  util::seconds_elapsed_since,
+  util::{create_temp_file, seconds_elapsed_since},
 };
 
 #[derive(Eq, PartialEq, Hash, Clone)]
@@ -43,21 +43,21 @@ fn format_exit_status(exit_status: ExitStatus) -> String {
   }
 }
 
-fn create_child(interpreter: &[String], pre_script: &str, cmd: &str) -> Result<Child> {
+fn create_child(pre_script: &str, cmd: &str) -> Result<Child> {
   let full_command = format!("{pre_script}\n{cmd}");
 
-  Command::new(&interpreter[0])
-    .args(&interpreter[1..])
-    .arg(&full_command)
+  let temp_path = create_temp_file("horsetab-exec", &full_command, 10)?;
+
+  let child = Command::new(temp_path)
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
     .spawn()
-    .with_context(|| {
-      format!("Cannot execute command using {interpreter:?}.\nCommand(s) executed: {full_command}")
-    })
+    .with_context(|| format!("Cannot execute command:\n{full_command}"));
+
+  child
 }
 
-fn handle_child(mut child: Child, start_time: DateTime<Local>, initial_cmd: &str) -> u32 {
+fn handle_child(mut child: Child, start_time: DateTime<Local>, initial_cmd: &str) {
   let pid = child.id();
 
   log_stdout(pid, &format!("Started {initial_cmd}"));
@@ -77,20 +77,17 @@ fn handle_child(mut child: Child, start_time: DateTime<Local>, initial_cmd: &str
     pid,
     &format!("Done in {elapsed_sec}s{}", format_exit_status(status)),
   );
-
-  child.id()
 }
 
 fn spawn_process(
   start_time: DateTime<Local>,
-  interpreter: &[String],
   pre_script: &str,
   cmd: &str,
   process_set: Arc<Mutex<HashSet<Process>>>,
 ) -> Result<Process> {
   let cmd_clone = cmd.to_owned();
 
-  let child = create_child(interpreter, pre_script, &cmd_clone)?;
+  let child = create_child(pre_script, &cmd_clone)?;
   let pid = child.id();
 
   let process = Process {
@@ -142,17 +139,12 @@ impl ProcessManager {
       .join("\n")
   }
 
-  pub fn start(&self, interpreter: &[String], pre_script: &str, cmd: &str) -> Result<u32> {
+  pub fn start(&self, pre_script: &str, cmd: &str) -> Result<u32> {
     let process_set = Arc::clone(&self.process_set);
 
-    let process = spawn_process(Local::now(), interpreter, pre_script, cmd, process_set)?;
+    let process = spawn_process(Local::now(), pre_script, cmd, process_set)?;
 
     let pid = process.pid;
-
-    // TODO: Not sure if it's dangerous or not to refer to this object.
-    //       Does this somehow cause cyclic references????
-    //       If it is, then I could try to split the objects (process manager and "managed data")
-    //       So that they exist individually, although it would be an overkill.
 
     self.process_set.lock().unwrap().insert(process);
 

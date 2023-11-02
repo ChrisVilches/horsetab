@@ -3,8 +3,11 @@ use chrono::{
   format::{DelayedFormat, StrftimeItems},
   DateTime, Local,
 };
-use std::fs::OpenOptions;
-use std::io::{BufRead, BufReader};
+use std::{
+  fs,
+  io::{BufRead, BufReader, Write},
+};
+use std::{fs::OpenOptions, os::unix::prelude::OpenOptionsExt};
 
 pub fn effectful_format_bytes_merge_newlines(string: &mut [u8], n: usize, prev_char: u8) -> &[u8] {
   let mut j = 0;
@@ -43,6 +46,31 @@ pub fn read_lines_or_create(file_path: &str) -> Result<Vec<String>, std::io::Err
   reader
     .lines()
     .collect::<Result<Vec<String>, std::io::Error>>()
+}
+
+pub fn create_temp_file(
+  path_prefix: &str,
+  content: &str,
+  remove_after_seconds: u64,
+) -> Result<String> {
+  let path = format!("/tmp/{path_prefix}-{}", nanoid::nanoid!());
+
+  std::fs::OpenOptions::new()
+    .create(true)
+    .write(true)
+    .mode(0o700)
+    .open(&path)?
+    .write_all(content.as_bytes())?;
+
+  let path_clone = path.clone();
+  std::thread::spawn(move || {
+    std::thread::sleep(std::time::Duration::from_secs(remove_after_seconds));
+    if let Err(err) = fs::remove_file(path_clone) {
+      eprintln!("Error while removing file: {err}");
+    }
+  });
+
+  Ok(path)
 }
 
 #[cfg(test)]

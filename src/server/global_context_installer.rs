@@ -32,7 +32,6 @@ fn assign_global_state(config: Configuration, state: &mut MainProcessState) {
   state.automata = SequenceAutomata::new(&config.get_sequences());
   state.commands = config.commands;
   state.pre_script = config.pre_script;
-  state.interpreter = config.interpreter;
 }
 
 pub fn install_state_from_file(config_path: &str, state: &mut MainProcessState) -> InstallResult {

@@ -58,9 +58,8 @@ horsetab edit
 Here's a full example:
 
 ```sh
-#!/bin/sh -c
-# ^ Choose your shell (for bash/dash/sh/zsh, it must have the -c flag)
-# Default is "sh -c" if shebang is removed.
+#!/bin/sh
+# ^ Choose your shell
 
 SOME_VARIABLE=1
 ANOTHER_VAR=2
@@ -72,9 +71,9 @@ MY_USER=$(whoami)
 
 # Define commands
 # Start with a morse sequence (at least two characters)
+# After the sequence, add the command to execute
 # .   -->  short click
 # -   -->  long click
-# After the sequence, add the command to execute
 
 .-.-.- some_sourced_alias
 ...---- another_command.sh > /dev/null 2>&1

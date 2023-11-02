@@ -2,33 +2,13 @@ use std::collections::BTreeSet;
 
 use crate::{
   cmd::Cmd,
-  constants::DEFAULT_INTERPRETER,
   sequence_automata::{AutomataInstruction, SequenceAutomata},
 };
 
 pub struct Configuration {
-  pub interpreter: Vec<String>,
   pub commands: Vec<Cmd>,
   pub unreachable_sequences: Vec<String>,
   pub pre_script: String,
-}
-
-fn parse_shebang_or_default(text: &str, default: &[&str]) -> Vec<String> {
-  let trimmed = text.trim();
-
-  if trimmed.starts_with("#!") {
-    trimmed.split('\n').next().unwrap()[2..]
-      .split(' ')
-      .filter(|s| !s.is_empty())
-      .map(std::borrow::ToOwned::to_owned)
-      .collect()
-  } else {
-    default
-      .iter()
-      .copied()
-      .map(std::borrow::ToOwned::to_owned)
-      .collect()
-  }
 }
 
 fn parse_lines(lines: &[String]) -> (Vec<Cmd>, String) {
@@ -93,9 +73,8 @@ impl Configuration {
     let unreachable_sequences = get_unreachable_sequences(&sequences);
 
     Self {
-      unreachable_sequences,
       commands,
-      interpreter: parse_shebang_or_default(&pre_script, &DEFAULT_INTERPRETER),
+      unreachable_sequences,
       pre_script,
     }
   }
@@ -205,16 +184,5 @@ mod tests {
     assert_eq!(result_seq, expected_seq);
     assert_eq!(result_cmd, expected_cmd);
     assert_eq!(other, expected_other);
-  }
-
-  #[test_case("#!/bin/zsh -c\nhello, some text", &["/usr/bin/env", "python3", "-c"], &["/bin/zsh", "-c"])]
-  #[test_case("   #!/bin/zsh -c\nhello world", &["/usr/bin/env", "python3", "-c"], &["/bin/zsh", "-c"])]
-  #[test_case("   #!  /bin/zsh -c\nhello", &["/usr/bin/env", "python3", "-c"], &["/bin/zsh", "-c"])]
-  #[test_case("   #!  /bin/zsh  -c  \nworld", &["/usr/bin/env", "python3", "-c"], &["/bin/zsh", "-c"])]
-  #[test_case(" # /bin/zsh  -c \n default", &["/usr/bin/env", "python3", "-c"], &["/usr/bin/env", "python3", "-c"])]
-  #[test_case(" empty ", &["/usr/bin/env", "python3", "-c"], &["/usr/bin/env", "python3", "-c"])]
-  #[test_case("hello, some text", &["bash", "-c"], &["bash", "-c"])]
-  fn test_parse_shebang_or_default(text: &str, default: &[&str], expected: &[&str]) {
-    assert_eq!(parse_shebang_or_default(text, default), expected);
   }
 }

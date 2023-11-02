@@ -60,7 +60,7 @@ fn format_commands(commands_text: &str) -> String {
 
 fn create_named_pipe() -> Result<String> {
   let id = nanoid::nanoid!();
-  let path = format!("/tmp/horsetab-{id}");
+  let path = format!("/tmp/horsetab-watch-{id}");
   unix_named_pipe::create(&path, Some(0o660))?;
   Ok(path)
 }
