@@ -111,7 +111,6 @@ fn build_http_server(
   Server::new(format!("0.0.0.0:{port}"), move |req| {
     handle_response(match (req.method(), req.url().as_ref()) {
       ("GET", "/current-config-file-content") => read_config_file(&conf_path),
-      // TODO: Is there a way to deal with nested mutex'es more elegantly?
       ("GET", "/ps") => get_ps(&mut state.lock().unwrap().process_manager.lock().unwrap()),
       ("GET", "/tcp-port") => get_tcp_port(tcp_port),
       ("GET", "/current-installed-commands") => curr_cmds(&state.lock().unwrap().commands),

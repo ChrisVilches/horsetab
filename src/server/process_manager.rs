@@ -138,8 +138,6 @@ pub fn start_garbage_collection(
 }
 
 fn garbage_collect_one_process(process: &mut Process, status: ExitStatus) {
-  // TODO: Not sure about pid=0... it shouldn't be the process PID, since
-  //       this is not the process output.
   let msg = format!(
     "Garbage collector: Process (PID {}) finished abnormally{}",
     process.pid,
