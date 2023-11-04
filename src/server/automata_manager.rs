@@ -1,33 +1,33 @@
-use super::event_observe::{EventNotifier, EventType};
+use super::event_observe::EventType;
 use super::global_context::MainProcessState;
 use crate::sequence_automata::AutomataInstruction;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Mutex;
 
-fn notify_event(event_notifier: &mut EventNotifier, instruction: AutomataInstruction) {
-  event_notifier.notify_with(|| match instruction {
+static SEND_ERR: &str = "Should send event";
+
+fn notify_instruction(events_sender: &Sender<EventType>, instruction: AutomataInstruction) {
+  let event = match instruction {
     AutomataInstruction::Char(c) => EventType::SequenceItem(c),
     AutomataInstruction::Reset => EventType::SequenceReset,
-  });
-}
+  };
 
-fn notify_success(event_notifier: &mut EventNotifier) {
-  event_notifier.notify_with(|| EventType::FoundResults);
+  events_sender.send(event).expect(SEND_ERR);
 }
 
 pub fn manage_automata(
   results_sender: &Sender<usize>,
   sequence_rec: Receiver<AutomataInstruction>,
-  event_notifier: &mut EventNotifier,
+  events_sender: &Sender<EventType>,
   state: &Mutex<MainProcessState>,
 ) {
   for instruction in sequence_rec {
-    notify_event(event_notifier, instruction);
+    notify_instruction(events_sender, instruction);
 
     let put_result = state.lock().unwrap().automata.put(instruction);
 
     if let Some(results) = put_result {
-      notify_success(event_notifier);
+      events_sender.send(EventType::FoundResults).expect(SEND_ERR);
 
       for result_id in results {
         results_sender

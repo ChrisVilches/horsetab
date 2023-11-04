@@ -1,5 +1,5 @@
 use std::io::{BufReader, Read, Write};
-use std::process::{ChildStdout, Command, Stdio};
+use std::net::TcpStream;
 
 use crate::constants::DEFAULT_COMMAND_CONFIG_FILE_CONTENT;
 use crate::util::effectful_format_bytes_merge_newlines;
@@ -10,7 +10,7 @@ use crate::{
 use anyhow::Result;
 use colored::Colorize;
 
-pub fn show_subcommand(port: u32, raw: bool) -> Result<String> {
+pub fn show_subcommand(port: u16, raw: bool) -> Result<String> {
   let current_config = api_client::get_current_installed_commands(port);
 
   #[allow(clippy::option_if_let_else)]
@@ -26,11 +26,11 @@ pub fn show_subcommand(port: u32, raw: bool) -> Result<String> {
   }
 }
 
-pub fn ps_subcommand(port: u32) -> Result<String> {
+pub fn ps_subcommand(port: u16) -> Result<String> {
   api_client::get_ps(port)
 }
 
-pub fn edit_subcommand(port: u32) -> Result<String> {
+pub fn edit_subcommand(port: u16) -> Result<String> {
   let current_config = api_client::get_current_config(port)?;
 
   let config_to_edit = if current_config.is_empty() {
@@ -58,22 +58,6 @@ fn format_commands(commands_text: &str) -> String {
     .join("\n")
 }
 
-fn create_named_pipe() -> Result<String> {
-  let id = nanoid::nanoid!();
-  let path = format!("/tmp/horsetab-watch-{id}");
-  unix_named_pipe::create(&path, Some(0o660))?;
-  Ok(path)
-}
-
-fn get_file_stdout_stream(path: &str) -> Result<BufReader<ChildStdout>> {
-  let mut child = Command::new("cat")
-    .arg(path)
-    .stdout(Stdio::piped())
-    .spawn()?;
-
-  Ok(BufReader::new(child.stdout.take().unwrap()))
-}
-
 fn print_from_buf_reader<R, W>(mut buf: BufReader<R>, mut out: W)
 where
   R: Read,
@@ -98,20 +82,14 @@ where
   }
 }
 
-pub fn watch_sequences_subcommand(port: u32) -> Result<String> {
-  let path = create_named_pipe()?;
-
-  let child_stdout = get_file_stdout_stream(&path)?;
-
-  api_client::watch_sequences(port, &path)?;
-
-  print_from_buf_reader(child_stdout, std::io::stdout());
-
-  println!();
+pub fn watch_sequences_subcommand(port: u16) -> Result<String> {
+  let tcp_port = api_client::get_tcp_port(port)?;
+  let stream = TcpStream::connect(format!("localhost:{tcp_port}"))?;
+  print_from_buf_reader(BufReader::new(stream), std::io::stdout());
   anyhow::bail!("Stopped getting data");
 }
 
-pub fn send_sequence_subcommand(port: u32, sequence: &str) -> Result<String> {
+pub fn send_sequence_subcommand(port: u16, sequence: &str) -> Result<String> {
   api_client::send_sequence(port, sequence)?;
   Ok(String::new())
 }

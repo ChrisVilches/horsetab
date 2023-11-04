@@ -1,14 +1,22 @@
-use std::sync::{Arc, Mutex};
+use std::{
+  collections::HashMap,
+  net::TcpStream,
+  sync::{
+    atomic::{AtomicU16, Ordering},
+    Arc, Mutex,
+  },
+};
 
 use crate::server::{
-  event_observe::make_event_observer,
   global_context::MainProcessState,
   global_context_installer::{install_state_from_file, InstallResult},
   http::start_http_server,
 };
 
 use super::{
-  automata_manager::manage_automata, mouse_events::mouse_handler,
+  automata_manager::manage_automata,
+  event_observe::{collect_watch_observers, notify_watch_observers, EventType},
+  mouse_events::mouse_handler,
   results_command_exec::listen_results_execute_command,
 };
 
@@ -27,26 +35,34 @@ fn install(config_path: &str, state: &mut MainProcessState) {
 }
 
 #[allow(clippy::too_many_lines)]
-pub fn start(port: u32, config_path: &str) {
+pub fn start(port: u16, config_path: &str, interpreter: &str) {
   let (sequence_sender, sequence_rec) = mpsc::channel();
   let (results_sender, results_rec) = mpsc::channel::<usize>();
   let sequence_sender_clone = sequence_sender.clone();
 
-  let mut state = MainProcessState::new();
+  let mut state = MainProcessState::new(interpreter);
 
   install(config_path, &mut state);
 
   let main_process_state = Arc::new(Mutex::new(state));
 
-  let (event_subscriber, mut event_notifier) = make_event_observer();
+  let (events_sender, events_receiver) = mpsc::channel::<EventType>();
+
+  let observers: Mutex<HashMap<u16, TcpStream>> = Mutex::new(HashMap::new());
+
+  let tcp_port = AtomicU16::new(0);
 
   std::thread::scope(|scope| {
     scope.spawn(|| listen_results_execute_command(results_rec, &main_process_state));
+
+    scope.spawn(|| notify_watch_observers(events_receiver, &observers));
+    scope.spawn(|| collect_watch_observers(&tcp_port, &observers));
+
     scope.spawn(|| {
       manage_automata(
         &results_sender,
         sequence_rec,
-        &mut event_notifier,
+        &events_sender,
         &main_process_state,
       );
     });
@@ -54,9 +70,9 @@ pub fn start(port: u32, config_path: &str) {
     scope.spawn(|| {
       start_http_server(
         port,
+        tcp_port.load(Ordering::Relaxed),
         config_path,
         sequence_sender_clone,
-        Arc::new(Mutex::new(event_subscriber)),
         Arc::clone(&main_process_state),
       );
     });

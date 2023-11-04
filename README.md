@@ -1,5 +1,7 @@
 # Horse Tab
 
+[![Crates.io](https://img.shields.io/crates/v/horsetab)](https://crates.io/crates/horsetab "horsetab on Crates.io")
+
 Trigger Linux/Unix commands via morse code using your mouse.
 
 ## Overview

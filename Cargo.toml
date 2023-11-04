@@ -19,8 +19,7 @@ regex = "1.10.2"
 rdev = "0.5.3"
 home = "0.5.5"
 colored = "2.0.4"
-unix-named-pipe = "0.2.0"
-nanoid = "0.4.0"
+tempfile = "3"
 
 [dev-dependencies]
 test-case = "3.2.1"

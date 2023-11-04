@@ -1,7 +1,13 @@
-use std::fs;
-use std::io::Write;
-use std::sync::{Arc, Mutex};
-use std::{collections::BTreeMap, fs::File};
+use std::{
+  collections::HashMap,
+  io::Write,
+  net::{TcpListener, TcpStream},
+  sync::{
+    atomic::{AtomicU16, Ordering},
+    mpsc::Receiver,
+    Mutex,
+  },
+};
 
 #[derive(Clone, Copy)]
 pub enum EventType {
@@ -19,80 +25,45 @@ impl ToString for EventType {
     }
   }
 }
-pub struct EventNotifier {
-  observers: Arc<Mutex<BTreeMap<String, File>>>,
-}
 
-pub struct EventSubscriber {
-  observers: Arc<Mutex<BTreeMap<String, File>>>,
-}
+pub fn notify_watch_observers(
+  events_receiver: Receiver<EventType>,
+  observers: &Mutex<HashMap<u16, TcpStream>>,
+) {
+  for event in events_receiver {
+    let mut guard = observers.lock().unwrap();
 
-impl EventNotifier {
-  pub fn notify_with(&mut self, f: impl Fn() -> EventType) {
-    if !self.observers.lock().unwrap().is_empty() {
-      self.notify(f());
+    if guard.is_empty() {
+      continue;
     }
-  }
 
-  fn remove(&self, remove_files: &[String]) {
-    let mut observers = self.observers.lock().unwrap();
-    for file_to_remove in remove_files {
-      observers.remove(file_to_remove);
-      if let Err(err) = fs::remove_file(file_to_remove) {
-        eprintln!("Error while removing file: {err}");
+    let msg = event.to_string();
+
+    let keys: Vec<u16> = guard.keys().copied().collect();
+
+    for key in keys {
+      let stream = guard.get_mut(&key).expect("Should contain key");
+      if stream.write(msg.as_bytes()).is_err() {
+        guard.remove(&key);
       }
     }
   }
-
-  fn notify_all(&mut self, content: &String) -> Vec<String> {
-    let mut remove_files = Vec::<String>::new();
-
-    let mut observers = self.observers.lock().unwrap();
-
-    for (file_name, file) in &mut *observers {
-      let result = file.write(content.as_bytes());
-
-      if let Err(err) = result {
-        match err.kind() {
-          std::io::ErrorKind::BrokenPipe => {}
-          e => eprintln!("Unhandled error while notifying: {e}"),
-        }
-        remove_files.push(file_name.clone());
-      }
-    }
-
-    remove_files
-  }
-
-  fn notify(&mut self, event: EventType) {
-    let content = event.to_string();
-
-    let remove_files = self.notify_all(&content);
-
-    self.remove(&remove_files);
-  }
 }
 
-impl EventSubscriber {
-  pub fn subscribe(&mut self, output_file_path: &str) {
-    match unix_named_pipe::open_write(output_file_path) {
-      Ok(file) => {
-        self
-          .observers
-          .lock()
-          .unwrap()
-          .insert(output_file_path.to_owned(), file);
+pub fn collect_watch_observers(tcp_port: &AtomicU16, observers: &Mutex<HashMap<u16, TcpStream>>) {
+  let listener = TcpListener::bind("0.0.0.0:0").unwrap();
+
+  tcp_port.store(listener.local_addr().unwrap().port(), Ordering::Relaxed);
+
+  for incoming_stream in listener.incoming() {
+    match incoming_stream {
+      Ok(stream) => {
+        let port = stream.peer_addr().unwrap().port();
+        observers.lock().unwrap().insert(port, stream);
       }
-      Err(err) => eprintln!("{err}"),
+      Err(e) => {
+        eprintln!("TCP error: {e}");
+      }
     }
   }
-}
-
-pub fn make_event_observer() -> (EventSubscriber, EventNotifier) {
-  let observers = Arc::new(Mutex::new(BTreeMap::<String, File>::new()));
-  let ref1 = Arc::clone(&observers);
-  let ref2 = Arc::clone(&observers);
-  let subscriber = EventSubscriber { observers: ref1 };
-  let notifier = EventNotifier { observers: ref2 };
-  (subscriber, notifier)
 }

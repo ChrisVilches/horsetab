@@ -1,14 +1,10 @@
-use crate::constants::DEFAULT_INTERPRETER;
 use anyhow::Result;
 use chrono::{
   format::{DelayedFormat, StrftimeItems},
   DateTime, Local,
 };
-use std::{
-  fs,
-  io::{BufRead, BufReader, Write},
-};
-use std::{fs::OpenOptions, os::unix::prelude::OpenOptionsExt};
+use std::fs::OpenOptions;
+use std::io::{BufRead, BufReader};
 
 pub fn effectful_format_bytes_merge_newlines(string: &mut [u8], n: usize, prev_char: u8) -> &[u8] {
   let mut j = 0;
@@ -49,45 +45,6 @@ pub fn read_lines_or_create(file_path: &str) -> Result<Vec<String>, std::io::Err
     .collect::<Result<Vec<String>, std::io::Error>>()
 }
 
-pub fn create_temp_file(
-  file_name_prefix: &str,
-  content: &str,
-  remove_after_seconds: u64,
-) -> Result<String> {
-  let path = format!("/tmp/{file_name_prefix}-{}", nanoid::nanoid!());
-
-  std::fs::OpenOptions::new()
-    .create(true)
-    .write(true)
-    .mode(0o700)
-    .open(&path)?
-    .write_all(content.as_bytes())?;
-
-  let path_clone = path.clone();
-  std::thread::spawn(move || {
-    std::thread::sleep(std::time::Duration::from_secs(remove_after_seconds));
-    if let Err(err) = fs::remove_file(path_clone) {
-      eprintln!("Error while removing file: {err}");
-    }
-  });
-
-  Ok(path)
-}
-
-pub fn ensure_shebang(file_content: &str) -> String {
-  let shebang = file_content
-    .split('\n')
-    .next()
-    .filter(|s| s.starts_with("#!"))
-    .filter(|s| s.len() > 2);
-
-  if shebang.is_some() {
-    file_content.to_owned()
-  } else {
-    format!("#!{DEFAULT_INTERPRETER}\n{file_content}")
-  }
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -110,18 +67,5 @@ mod tests {
 
     let result = effectful_format_bytes_merge_newlines(slice, len, prev_char);
     assert_eq!(String::from_utf8_lossy(result), expected);
-  }
-
-  #[test_case("hello", "#!/bin/sh\nhello")]
-  #[test_case("#!world", "#!world")]
-  #[test_case("#! hello", "#! hello")]
-  #[test_case("#!\nhello", "#!/bin/sh\n#!\nhello")]
-  #[test_case("#! \nhello", "#! \nhello")]
-  #[test_case("#hi", "#!/bin/sh\n#hi")]
-  #[test_case(" #!/bin/sh", "#!/bin/sh\n #!/bin/sh")]
-  #[test_case(" #!/bin/zsh\ntext", "#!/bin/sh\n #!/bin/zsh\ntext")]
-  #[test_case("#!/bin/zsh\ntext", "#!/bin/zsh\ntext")]
-  fn test_ensure_shebang(input: &str, expected: &str) {
-    assert_eq!(ensure_shebang(input), expected);
   }
 }

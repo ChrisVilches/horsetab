@@ -1,5 +1,4 @@
 use super::{
-  event_observe::EventSubscriber,
   global_context::MainProcessState,
   global_context_installer::{install_state_from_file, InstallResult},
   process_manager::ProcessManager,
@@ -75,15 +74,6 @@ fn curr_cmds(commands: &[Cmd]) -> Result<Response> {
   Ok(Response::text(current_commands_text))
 }
 
-fn watch_sequences(
-  request: &Request,
-  event_subscriber: &Mutex<EventSubscriber>,
-) -> Result<Response> {
-  let file = get_body_as_string(request)?;
-  event_subscriber.lock().unwrap().subscribe(&file);
-  Ok(Response::empty_204())
-}
-
 fn send_sequence(
   request: &Request,
   sequence_sender: &Sender<AutomataInstruction>,
@@ -104,11 +94,16 @@ fn get_ps(process_manager: &ProcessManager) -> Result<Response> {
   Ok(Response::text(process_manager.format_information()))
 }
 
+#[allow(clippy::unnecessary_wraps)]
+fn get_tcp_port(tcp_port: u16) -> Result<Response> {
+  Ok(Response::text(format!("{tcp_port}")))
+}
+
 fn build_http_server(
-  port: u32,
+  port: u16,
+  tcp_port: u16,
   config_path: &str,
   sequence_sender: Sender<AutomataInstruction>,
-  event_subscriber: Arc<Mutex<EventSubscriber>>,
   state: Arc<Mutex<MainProcessState>>,
 ) -> Result<Server<impl Fn(&Request) -> Response>, Box<dyn Error + Send + Sync>> {
   let conf_path = config_path.to_owned();
@@ -117,8 +112,8 @@ fn build_http_server(
     handle_response(match (req.method(), req.url().as_ref()) {
       ("GET", "/current-config-file-content") => read_config_file(&conf_path),
       ("GET", "/ps") => get_ps(&state.lock().unwrap().process_manager),
+      ("GET", "/tcp-port") => get_tcp_port(tcp_port),
       ("GET", "/current-installed-commands") => curr_cmds(&state.lock().unwrap().commands),
-      ("POST", "/observe-sequences") => watch_sequences(req, &event_subscriber),
       ("POST", "/send-sequence") => send_sequence(req, &sequence_sender),
       ("PUT", "/re-install") => reinstall(req, &conf_path, &mut state.lock().unwrap()),
       _ => Ok(Response::text("Not found").with_status_code(404)),
@@ -127,13 +122,13 @@ fn build_http_server(
 }
 
 pub fn start_http_server(
-  port: u32,
+  port: u16,
+  tcp_port: u16,
   config_path: &str,
   sequence_sender: Sender<AutomataInstruction>,
-  event_subscriber: Arc<Mutex<EventSubscriber>>,
   state: Arc<Mutex<MainProcessState>>,
 ) {
-  match build_http_server(port, config_path, sequence_sender, event_subscriber, state) {
+  match build_http_server(port, tcp_port, config_path, sequence_sender, state) {
     Ok(server) => {
       println!("Listening on {:?}", server.server_addr());
       server.run();

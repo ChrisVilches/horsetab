@@ -1,6 +1,6 @@
 use home::home_dir;
 
-pub static DEFAULT_PORT: u32 = 17757;
+pub static DEFAULT_PORT: u16 = 17757;
 static DEFAULT_CONFIG_FILE_NAME: &str = ".horsetab.conf";
 
 pub static DEFAULT_INTERPRETER: &str = "/bin/sh";

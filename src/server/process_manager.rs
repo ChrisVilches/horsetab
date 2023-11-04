@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Local};
+use std::io::Write;
 use std::{
   collections::HashSet,
   sync::{Arc, Mutex},
@@ -8,10 +9,11 @@ use std::{
   io::BufReader,
   process::{Child, Command, ExitStatus, Stdio},
 };
+use tempfile::NamedTempFile;
 
 use crate::{
   logger::{log_stdout, redirect_output},
-  util::{create_temp_file, seconds_elapsed_since},
+  util::seconds_elapsed_since,
 };
 
 #[derive(Eq, PartialEq, Hash, Clone)]
@@ -42,16 +44,23 @@ fn format_exit_status(exit_status: ExitStatus) -> String {
   }
 }
 
-fn create_child(pre_script: &str, cmd: &str) -> Result<Child> {
+fn create_child(interpreter: &str, pre_script: &str, cmd: &str) -> Result<Child> {
   let full_command = format!("{pre_script}\n{cmd}\n");
 
-  let temp_path = create_temp_file("horsetab-exec", &full_command, 10)?;
+  let file = Arc::new(Mutex::new(NamedTempFile::new()?));
+  write!(file.lock().unwrap(), "{full_command}").unwrap();
 
-  let child = Command::new(temp_path)
+  let child = Command::new(interpreter)
+    .arg(file.lock().unwrap().path())
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
     .spawn()
-    .with_context(|| format!("Cannot execute command:\n{full_command}"));
+    .with_context(|| format!("({interpreter}) Cannot execute:\n{full_command}"));
+
+  std::thread::spawn(|| {
+    std::thread::sleep(std::time::Duration::from_secs(10));
+    drop(file);
+  });
 
   child
 }
@@ -79,6 +88,7 @@ fn handle_child(mut child: Child, start_time: DateTime<Local>, initial_cmd: &str
 }
 
 fn spawn_process(
+  interpreter: &str,
   start_time: DateTime<Local>,
   pre_script: &str,
   cmd: &str,
@@ -86,7 +96,7 @@ fn spawn_process(
 ) -> Result<Process> {
   let cmd_clone = cmd.to_owned();
 
-  let child = create_child(pre_script, &cmd_clone)?;
+  let child = create_child(interpreter, pre_script, &cmd_clone)?;
   let pid = child.id();
 
   let process = Process {
@@ -138,10 +148,10 @@ impl ProcessManager {
       .join("\n")
   }
 
-  pub fn start(&self, pre_script: &str, cmd: &str) -> Result<u32> {
+  pub fn start(&self, interpreter: &str, pre_script: &str, cmd: &str) -> Result<u32> {
     let process_set = Arc::clone(&self.process_set);
 
-    let process = spawn_process(Local::now(), pre_script, cmd, process_set)?;
+    let process = spawn_process(interpreter, Local::now(), pre_script, cmd, process_set)?;
 
     let pid = process.pid;
 

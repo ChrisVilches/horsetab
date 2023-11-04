@@ -6,15 +6,17 @@ pub struct MainProcessState {
   pub pre_script: String,
   pub automata: SequenceAutomata,
   pub process_manager: ProcessManager,
+  pub interpreter: String,
 }
 
 impl MainProcessState {
-  pub fn new() -> Self {
+  pub fn new(interpreter: &str) -> Self {
     Self {
       commands: vec![],
       pre_script: String::new(),
       automata: SequenceAutomata::new(&[]),
       process_manager: ProcessManager::new(),
+      interpreter: interpreter.to_owned(),
     }
   }
 }

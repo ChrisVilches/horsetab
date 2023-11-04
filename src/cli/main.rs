@@ -3,7 +3,7 @@ use super::subcommands::{
   watch_sequences_subcommand,
 };
 use crate::{
-  constants::{get_default_config_path, DEFAULT_PORT},
+  constants::{get_default_config_path, DEFAULT_INTERPRETER, DEFAULT_PORT},
   server,
 };
 use anyhow::Result;
@@ -15,16 +15,19 @@ pub enum Commands {
   #[command(about = "Start server process")]
   Serve {
     #[arg(short, long, default_value_t = DEFAULT_PORT)]
-    port: u32,
+    port: u16,
 
     #[arg(short, long, default_value_t = get_default_config_path())]
     config_path: String,
+
+    #[arg(short, long, default_value_t = DEFAULT_INTERPRETER.to_owned())]
+    interpreter: String,
   },
 
   #[command(about = "Show current commands")]
   Show {
     #[arg(short, long, default_value_t = DEFAULT_PORT)]
-    port: u32,
+    port: u16,
 
     #[arg(short, long, default_value_t = false)]
     raw: bool,
@@ -33,13 +36,13 @@ pub enum Commands {
   #[command(about = "Edit commands")]
   Edit {
     #[arg(short, long, default_value_t = DEFAULT_PORT)]
-    port: u32,
+    port: u16,
   },
 
   #[command(about = "Send a sequence")]
   SendSequence {
     #[arg(short, long, default_value_t = DEFAULT_PORT)]
-    port: u32,
+    port: u16,
 
     #[arg(
       short,
@@ -52,13 +55,13 @@ pub enum Commands {
   #[command(about = "Watch sequences")]
   Watch {
     #[arg(short, long, default_value_t = DEFAULT_PORT)]
-    port: u32,
+    port: u16,
   },
 
   #[command(about = "Display status information about processes")]
   Ps {
     #[arg(short, long, default_value_t = DEFAULT_PORT)]
-    port: u32,
+    port: u16,
   },
 }
 
@@ -71,8 +74,12 @@ pub struct Cli {
 
 fn match_cli_subcommand(command: &Commands) -> Result<String> {
   match command {
-    Commands::Serve { port, config_path } => {
-      server::main::start(*port, config_path);
+    Commands::Serve {
+      port,
+      config_path,
+      interpreter,
+    } => {
+      server::main::start(*port, config_path, interpreter);
       Ok(String::new())
     }
     Commands::Edit { port } => edit_subcommand(*port),
