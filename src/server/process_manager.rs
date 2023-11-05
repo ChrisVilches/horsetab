@@ -3,7 +3,7 @@ use chrono::{DateTime, Local};
 use std::collections::HashMap;
 use std::io::Write;
 use std::process::{ChildStderr, ChildStdout};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex};
 use std::{
   io::BufReader,
   process::{Child, Command, ExitStatus, Stdio},
@@ -19,7 +19,6 @@ struct Process {
   cmd: String,
   start_time: DateTime<Local>,
   pid: u32,
-  child: Arc<Mutex<Child>>,
   status: Option<ExitStatus>,
 }
 
@@ -70,23 +69,17 @@ fn create_child(interpreter: &str, pre_script: &str, cmd: &str) -> Result<Child>
   child
 }
 
-fn get_output(mut child: MutexGuard<'_, Child>) -> (ChildStdout, ChildStderr) {
-  (child.stdout.take().unwrap(), child.stderr.take().unwrap())
-}
-
-fn handle_child(child: &Mutex<Child>, start_time: DateTime<Local>, initial_cmd: &str) {
-  let child_guard = child.lock().unwrap();
-  let pid = child_guard.id();
-  let (stdout, stderr) = get_output(child_guard);
-
-  log_stdout(pid, &format!("Started {initial_cmd}"));
-
-  std::thread::scope(|scope| {
-    scope.spawn(|| redirect_output(BufReader::new(stdout), pid, true));
-    scope.spawn(|| redirect_output(BufReader::new(stderr), pid, false));
-  });
-
+fn handle_child_exit(
+  child: &Mutex<Child>,
+  process_map: &Mutex<HashMap<u32, Process>>,
+  pid: u32,
+  start_time: DateTime<Local>,
+) {
   let status = child.lock().unwrap().wait().expect("Should wait child");
+
+  if let Some(process) = process_map.lock().unwrap().get_mut(&pid) {
+    process.status = Some(status);
+  }
 
   let elapsed_sec = seconds_elapsed_since(start_time);
 
@@ -94,6 +87,31 @@ fn handle_child(child: &Mutex<Child>, start_time: DateTime<Local>, initial_cmd: 
     pid,
     &format!("Done in {elapsed_sec}s{}", format_exit_status(status)),
   );
+}
+
+fn get_child_information(child: &Mutex<Child>) -> (u32, ChildStdout, ChildStderr) {
+  let mut child_guard = child.lock().unwrap();
+  let pid = child_guard.id();
+  let stdout = child_guard.stdout.take().unwrap();
+  let stderr = child_guard.stderr.take().unwrap();
+  (pid, stdout, stderr)
+}
+
+fn handle_child(
+  child: &Mutex<Child>,
+  start_time: DateTime<Local>,
+  initial_cmd: &str,
+  process_map: &Mutex<HashMap<u32, Process>>,
+) {
+  let (pid, stdout, stderr) = get_child_information(child);
+
+  log_stdout(pid, &format!("Started {initial_cmd}"));
+
+  std::thread::scope(|scope| {
+    scope.spawn(|| redirect_output(BufReader::new(stdout), pid, true));
+    scope.spawn(|| redirect_output(BufReader::new(stderr), pid, false));
+    scope.spawn(|| handle_child_exit(child, process_map, pid, start_time));
+  });
 }
 
 fn spawn_process(
@@ -113,35 +131,19 @@ fn spawn_process(
     cmd: cmd.clone(),
     start_time,
     pid,
-    child: Arc::clone(&wrapped_child),
     status: None,
   };
 
   std::thread::spawn(move || {
-    handle_child(&wrapped_child, start_time, &cmd);
+    handle_child(&wrapped_child, start_time, &cmd, &process_map);
+    std::thread::sleep(std::time::Duration::from_secs(5));
+
+    // TODO: The problem that "TIME" means "time since creation" and not "execution time"
+    //       still remains, but it's pretty easy to fix/implement.
     process_map.lock().unwrap().remove(&pid);
   });
 
   Ok(process)
-}
-
-fn garbage_collect_one_process(process: &mut Process, status: ExitStatus) {
-  let msg = format!(
-    "Garbage collector: Process (PID {}) finished abnormally{}",
-    process.pid,
-    format_exit_status(status)
-  );
-  log_stdout(0, &msg);
-  process.status = Some(status);
-}
-
-fn check_process_finished(process: &Process) -> Result<Option<ExitStatus>> {
-  process
-    .child
-    .lock()
-    .unwrap()
-    .try_wait()
-    .with_context(|| format!("Cannot wait child (PID {})", process.pid))
 }
 
 pub struct ProcessManager {
@@ -153,34 +155,6 @@ impl ProcessManager {
     Self {
       process_map: Arc::new(Mutex::new(HashMap::new())),
     }
-  }
-
-  pub fn start_garbage_collection(
-    process_manager: Arc<Mutex<Self>>,
-    interval: std::time::Duration,
-  ) {
-    std::thread::spawn(move || loop {
-      if let Err(e) = process_manager.lock().unwrap().garbage_collect() {
-        eprintln!("{e}");
-      }
-      std::thread::sleep(interval);
-    });
-  }
-
-  fn garbage_collect(&mut self) -> Result<()> {
-    let mut process_map = self.process_map.lock().unwrap();
-
-    let process_without_exit_status = process_map
-      .iter_mut()
-      .filter(|(_, process)| process.status.is_none());
-
-    for (_, process) in process_without_exit_status {
-      if let Some(status) = check_process_finished(process)? {
-        garbage_collect_one_process(process, status);
-      }
-    }
-
-    Ok(())
   }
 
   fn format_process_lines(&self) -> String {

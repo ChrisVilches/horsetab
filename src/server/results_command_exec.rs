@@ -11,11 +11,10 @@ pub fn listen_results_execute_command(
 
     let cmd = state_guard.commands[result_id].command.clone();
 
-    let start_result = state_guard.process_manager.lock().unwrap().start(
-      &state_guard.interpreter,
-      &state_guard.pre_script,
-      &cmd,
-    );
+    let start_result =
+      state_guard
+        .process_manager
+        .start(&state_guard.interpreter, &state_guard.pre_script, &cmd);
 
     if let Err(e) = start_result {
       eprintln!("{e}");
