@@ -194,7 +194,7 @@ impl ProcessManager {
       .join("\n")
   }
 
-  pub fn format_information(&mut self) -> String {
+  pub fn format_information(&self) -> String {
     let header = process_4col_format!("PID", "TIME (s)", "STATUS", "COMMAND");
 
     [header, self.format_process_lines()]

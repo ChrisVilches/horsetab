@@ -90,7 +90,7 @@ fn send_sequence(
 }
 
 #[allow(clippy::unnecessary_wraps)]
-fn get_ps(process_manager: &mut ProcessManager) -> Result<Response> {
+fn get_ps(process_manager: &ProcessManager) -> Result<Response> {
   Ok(Response::text(process_manager.format_information()))
 }
 
@@ -111,7 +111,7 @@ fn build_http_server(
   Server::new(format!("0.0.0.0:{port}"), move |req| {
     handle_response(match (req.method(), req.url().as_ref()) {
       ("GET", "/current-config-file-content") => read_config_file(&conf_path),
-      ("GET", "/ps") => get_ps(&mut state.lock().unwrap().process_manager.lock().unwrap()),
+      ("GET", "/ps") => get_ps(&state.lock().unwrap().process_manager.lock().unwrap()),
       ("GET", "/tcp-port") => get_tcp_port(tcp_port),
       ("GET", "/current-installed-commands") => curr_cmds(&state.lock().unwrap().commands),
       ("POST", "/send-sequence") => send_sequence(req, &sequence_sender),
