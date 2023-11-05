@@ -60,9 +60,6 @@ horsetab edit
 Here's a full example:
 
 ```sh
-#!/bin/sh
-# ^ Choose your shell
-
 ####################
 #   Example File   #
 ####################
