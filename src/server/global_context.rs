@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use super::process_manager::{start_garbage_collection, ProcessManager};
+use super::process_manager::ProcessManager;
 use crate::{cmd::Cmd, sequence_automata::SequenceAutomata};
 
 pub struct MainProcessState {
@@ -14,7 +14,8 @@ pub struct MainProcessState {
 impl MainProcessState {
   pub fn new(interpreter: &str) -> Self {
     let process_manager = Arc::new(Mutex::new(ProcessManager::new()));
-    start_garbage_collection(
+
+    ProcessManager::start_garbage_collection(
       Arc::clone(&process_manager),
       std::time::Duration::from_secs(2),
     );

@@ -125,18 +125,6 @@ fn spawn_process(
   Ok(process)
 }
 
-pub fn start_garbage_collection(
-  process_manager: Arc<Mutex<ProcessManager>>,
-  interval: std::time::Duration,
-) {
-  std::thread::spawn(move || loop {
-    if let Err(e) = process_manager.lock().unwrap().garbage_collect() {
-      eprintln!("{e}");
-    }
-    std::thread::sleep(interval);
-  });
-}
-
 fn garbage_collect_one_process(process: &mut Process, status: ExitStatus) {
   let msg = format!(
     "Garbage collector: Process (PID {}) finished abnormally{}",
@@ -165,6 +153,18 @@ impl ProcessManager {
     Self {
       process_map: Arc::new(Mutex::new(HashMap::new())),
     }
+  }
+
+  pub fn start_garbage_collection(
+    process_manager: Arc<Mutex<ProcessManager>>,
+    interval: std::time::Duration,
+  ) {
+    std::thread::spawn(move || loop {
+      if let Err(e) = process_manager.lock().unwrap().garbage_collect() {
+        eprintln!("{e}");
+      }
+      std::thread::sleep(interval);
+    });
   }
 
   fn garbage_collect(&mut self) -> Result<()> {
