@@ -156,7 +156,7 @@ impl ProcessManager {
   }
 
   pub fn start_garbage_collection(
-    process_manager: Arc<Mutex<ProcessManager>>,
+    process_manager: Arc<Mutex<Self>>,
     interval: std::time::Duration,
   ) {
     std::thread::spawn(move || loop {
