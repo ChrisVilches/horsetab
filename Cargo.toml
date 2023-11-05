@@ -1,6 +1,6 @@
 [package]
 name = "horsetab"
-version = "0.3.7"
+version = "0.3.8"
 edition = "2021"
 repository = "https://github.com/ChrisVilches/horsetab"
 description = "Trigger Linux/Unix commands via morse code using your mouse."
