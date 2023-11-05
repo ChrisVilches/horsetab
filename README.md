@@ -96,13 +96,11 @@ MY_USER=$(whoami)
 
 On Windows, install using Cargo, but run using [Cygwin](https://en.wikipedia.org/wiki/Cygwin) (Unix-like environment).
 
-Currently, it seems to work properly only on Cygwin. There are several issues when running it with CMD or Powershell. No alternatives to Cygwin have been tested.
+Currently, it seems to work properly only on Cygwin. There are several issues when running it with CMD or Powershell. No alternatives to Cygwin have been reported to work correctly.
 
-### Caveats
+### Kill a Process
 
-When triggering a command, a PID (process ID) will be assigned to the spawned process. However, the PID shown by `horsetab ps` will be different from the actual one. This is because processes in Cygwin have both a PID and a WINPID, which are different in most cases.
-
-If you want to kill a process, use `ps aux` to find the actual PID.
+Processes in Cygwin have both a PID and a WINPID, so the PID shown by `horsetab ps` may not work if you want to kill the process. Use `ps aux` to find the correct PID.
 
 ## Credits
 
