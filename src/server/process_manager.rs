@@ -84,9 +84,9 @@ fn create_child(interpreter: &str, pre_script: &str, cmd: &str) -> Result<Child>
 fn handle_child_exit(
   mut child: Child,
   process_map: &Mutex<HashMap<u32, Process>>,
-  pid: u32,
   start_time: DateTime<Local>,
 ) {
+  let pid = child.id();
   let status = child.wait().expect("Should wait child");
   let end_time = Local::now();
 
@@ -118,7 +118,7 @@ fn handle_child(
   std::thread::scope(|scope| {
     scope.spawn(|| redirect_output(BufReader::new(stdout), pid, true));
     scope.spawn(|| redirect_output(BufReader::new(stderr), pid, false));
-    scope.spawn(|| handle_child_exit(child, process_map, pid, start_time));
+    scope.spawn(|| handle_child_exit(child, process_map, start_time));
   });
 }
 
