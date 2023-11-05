@@ -2,11 +2,7 @@ use std::{
   collections::HashMap,
   io::Write,
   net::{TcpListener, TcpStream},
-  sync::{
-    atomic::{AtomicU16, Ordering},
-    mpsc::Receiver,
-    Mutex,
-  },
+  sync::{mpsc::Receiver, Mutex},
 };
 
 #[derive(Clone, Copy)]
@@ -50,12 +46,11 @@ pub fn notify_watch_observers(
   }
 }
 
-pub fn collect_watch_observers(tcp_port: &AtomicU16, observers: &Mutex<HashMap<u16, TcpStream>>) {
-  let listener = TcpListener::bind("0.0.0.0:0").unwrap();
-
-  tcp_port.store(listener.local_addr().unwrap().port(), Ordering::Relaxed);
-
-  for incoming_stream in listener.incoming() {
+pub fn collect_watch_observers(
+  tcp_listener: &TcpListener,
+  observers: &Mutex<HashMap<u16, TcpStream>>,
+) {
+  for incoming_stream in tcp_listener.incoming() {
     match incoming_stream {
       Ok(stream) => {
         let port = stream.peer_addr().unwrap().port();

@@ -1,10 +1,7 @@
 use std::{
   collections::HashMap,
-  net::TcpStream,
-  sync::{
-    atomic::{AtomicU16, Ordering},
-    Arc, Mutex,
-  },
+  net::{TcpListener, TcpStream},
+  sync::{Arc, Mutex},
 };
 
 use crate::server::{
@@ -50,13 +47,13 @@ pub fn start(port: u16, config_path: &str, interpreter: &str) {
 
   let observers: Mutex<HashMap<u16, TcpStream>> = Mutex::new(HashMap::new());
 
-  let tcp_port = AtomicU16::new(0);
+  let tcp_listener = TcpListener::bind("0.0.0.0:0").unwrap();
 
   std::thread::scope(|scope| {
     scope.spawn(|| listen_results_execute_command(results_rec, &main_process_state));
 
     scope.spawn(|| notify_watch_observers(events_receiver, &observers));
-    scope.spawn(|| collect_watch_observers(&tcp_port, &observers));
+    scope.spawn(|| collect_watch_observers(&tcp_listener, &observers));
 
     scope.spawn(|| {
       manage_automata(
@@ -70,7 +67,7 @@ pub fn start(port: u16, config_path: &str, interpreter: &str) {
     scope.spawn(|| {
       start_http_server(
         port,
-        tcp_port.load(Ordering::Relaxed),
+        tcp_listener.local_addr().unwrap().port(),
         config_path,
         sequence_sender_clone,
         Arc::clone(&main_process_state),
