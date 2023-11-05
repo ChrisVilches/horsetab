@@ -167,7 +167,7 @@ mod tests {
   }
 
   #[test]
-  fn test_must_be_resetted_otherwise_wont_match() {
+  fn test_must_reset_otherwise_wont_match() {
     let mut automata = build_automata(&["011"]);
     check_results(
       &mut automata,

@@ -92,6 +92,18 @@ MY_USER=$(whoami)
 # the if statement anyway by the parser and made available to be triggered.
 ```
 
+## Windows Support
+
+On Windows, install using Cargo, but run using [Cygwin](https://en.wikipedia.org/wiki/Cygwin) (Unix-like environment).
+
+Currently, it seems to work properly only on Cygwin. There are several issues when running it with CMD or Powershell. No alternatives to Cygwin have been tested.
+
+### Caveats
+
+When triggering a command, a PID (process ID) will be assigned to the spawned process. However, the PID shown by `horsetab ps` will be different from the actual one. This is because processes in Cygwin have both a PID and a WINPID, which are different in most cases.
+
+If you want to kill a process, use `ps aux` to find the actual PID.
+
 ## Credits
 
 Made by Chris Vilches using the Rust programming language.
