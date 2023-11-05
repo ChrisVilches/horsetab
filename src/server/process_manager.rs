@@ -2,7 +2,6 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Local};
 use std::collections::HashMap;
 use std::io::Write;
-use std::process::{ChildStderr, ChildStdout};
 use std::sync::{Arc, Mutex};
 use std::{
   io::BufReader,
@@ -83,20 +82,20 @@ fn create_child(interpreter: &str, pre_script: &str, cmd: &str) -> Result<Child>
 }
 
 fn handle_child_exit(
-  child: &Mutex<Child>,
+  mut child: Child,
   process_map: &Mutex<HashMap<u32, Process>>,
   pid: u32,
   start_time: DateTime<Local>,
 ) {
-  let status = child.lock().unwrap().wait().expect("Should wait child");
-  let end_time = Some(Local::now());
+  let status = child.wait().expect("Should wait child");
+  let end_time = Local::now();
 
   if let Some(process) = process_map.lock().unwrap().get_mut(&pid) {
     process.status = Some(status);
-    process.end_time = end_time;
+    process.end_time = Some(end_time);
   }
 
-  let elapsed_sec = seconds_elapsed(start_time, end_time);
+  let elapsed_sec = seconds_elapsed(start_time, Some(end_time));
 
   log_stdout(
     pid,
@@ -104,21 +103,15 @@ fn handle_child_exit(
   );
 }
 
-fn get_child_information(child: &Mutex<Child>) -> (u32, ChildStdout, ChildStderr) {
-  let mut child_guard = child.lock().unwrap();
-  let pid = child_guard.id();
-  let stdout = child_guard.stdout.take().unwrap();
-  let stderr = child_guard.stderr.take().unwrap();
-  (pid, stdout, stderr)
-}
-
 fn handle_child(
-  child: &Mutex<Child>,
+  mut child: Child,
   start_time: DateTime<Local>,
   initial_cmd: &str,
   process_map: &Mutex<HashMap<u32, Process>>,
 ) {
-  let (pid, stdout, stderr) = get_child_information(child);
+  let pid = child.id();
+  let stdout = child.stdout.take().unwrap();
+  let stderr = child.stderr.take().unwrap();
 
   log_stdout(pid, &format!("Started {initial_cmd}"));
 
@@ -139,12 +132,10 @@ fn spawn_process(
 
   let pid = child.id();
 
-  let wrapped_child = Arc::new(Mutex::new(child));
-
   let process = Process::new(pid, &cmd);
 
   std::thread::spawn(move || {
-    handle_child(&wrapped_child, process.start_time, &cmd, &process_map);
+    handle_child(child, process.start_time, &cmd, &process_map);
     std::thread::sleep(std::time::Duration::from_secs(5));
     process_map.lock().unwrap().remove(&pid);
   });
