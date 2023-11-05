@@ -12,14 +12,27 @@ use tempfile::NamedTempFile;
 
 use crate::{
   logger::{log_stdout, redirect_output},
-  util::seconds_elapsed_since,
+  util::seconds_elapsed,
 };
 
 struct Process {
   cmd: String,
   start_time: DateTime<Local>,
+  end_time: Option<DateTime<Local>>,
   pid: u32,
   status: Option<ExitStatus>,
+}
+
+impl Process {
+  fn new(pid: u32, cmd: &str) -> Self {
+    Self {
+      cmd: cmd.to_owned(),
+      start_time: Local::now(),
+      end_time: None,
+      pid,
+      status: None,
+    }
+  }
 }
 
 macro_rules! process_4col_format {
@@ -30,7 +43,7 @@ macro_rules! process_4col_format {
 
 impl ToString for Process {
   fn to_string(&self) -> String {
-    let elapsed = seconds_elapsed_since(self.start_time);
+    let elapsed = seconds_elapsed(self.start_time, self.end_time);
 
     let status_str = self
       .status
@@ -76,12 +89,14 @@ fn handle_child_exit(
   start_time: DateTime<Local>,
 ) {
   let status = child.lock().unwrap().wait().expect("Should wait child");
+  let end_time = Some(Local::now());
 
   if let Some(process) = process_map.lock().unwrap().get_mut(&pid) {
     process.status = Some(status);
+    process.end_time = end_time;
   }
 
-  let elapsed_sec = seconds_elapsed_since(start_time);
+  let elapsed_sec = seconds_elapsed(start_time, end_time);
 
   log_stdout(
     pid,
@@ -116,7 +131,6 @@ fn handle_child(
 
 fn spawn_process(
   interpreter: &str,
-  start_time: DateTime<Local>,
   pre_script: &str,
   cmd: String,
   process_map: Arc<Mutex<HashMap<u32, Process>>>,
@@ -127,19 +141,11 @@ fn spawn_process(
 
   let wrapped_child = Arc::new(Mutex::new(child));
 
-  let process = Process {
-    cmd: cmd.clone(),
-    start_time,
-    pid,
-    status: None,
-  };
+  let process = Process::new(pid, &cmd);
 
   std::thread::spawn(move || {
-    handle_child(&wrapped_child, start_time, &cmd, &process_map);
+    handle_child(&wrapped_child, process.start_time, &cmd, &process_map);
     std::thread::sleep(std::time::Duration::from_secs(5));
-
-    // TODO: The problem that "TIME" means "time since creation" and not "execution time"
-    //       still remains, but it's pretty easy to fix/implement.
     process_map.lock().unwrap().remove(&pid);
   });
 
@@ -182,13 +188,7 @@ impl ProcessManager {
   pub fn start(&self, interpreter: &str, pre_script: &str, cmd: &str) -> Result<u32> {
     let process_map = Arc::clone(&self.process_map);
 
-    let process = spawn_process(
-      interpreter,
-      Local::now(),
-      pre_script,
-      cmd.into(),
-      process_map,
-    )?;
+    let process = spawn_process(interpreter, pre_script, cmd.into(), process_map)?;
 
     let pid = process.pid;
 

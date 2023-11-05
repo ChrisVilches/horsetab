@@ -27,8 +27,8 @@ pub fn format_date<'a>(date: DateTime<Local>) -> DelayedFormat<StrftimeItems<'a>
   date.format("%Y-%m-%d %H:%M:%S")
 }
 
-pub fn seconds_elapsed_since(date_time: DateTime<Local>) -> i64 {
-  Local::now().timestamp() - date_time.timestamp()
+pub fn seconds_elapsed(lo: DateTime<Local>, hi: Option<DateTime<Local>>) -> i64 {
+  hi.unwrap_or_else(Local::now).timestamp() - lo.timestamp()
 }
 
 pub fn read_lines_or_create(file_path: &str) -> Result<Vec<String>, std::io::Error> {
