@@ -99,7 +99,10 @@ fn handle_child_exit(
 
   log_stdout(
     pid,
-    &format!("Done in {elapsed_sec}s{}", format_exit_status(status)),
+    &format!(
+      "Process exited after {elapsed_sec}s{}",
+      format_exit_status(status)
+    ),
   );
 }
 

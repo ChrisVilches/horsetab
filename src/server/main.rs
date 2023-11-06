@@ -4,15 +4,18 @@ use std::{
   sync::{Arc, Mutex},
 };
 
-use crate::server::{
-  global_context::MainProcessState,
-  global_context_installer::{install_state_from_file, InstallResult},
-  http::start_http_server,
+use crate::{
+  ipc_tcp::EventType,
+  server::{
+    global_context::MainProcessState,
+    global_context_installer::{install_state_from_file, InstallResult},
+    http::start_http_server,
+  },
 };
 
 use super::{
   automata_manager::manage_automata,
-  event_observe::{collect_watch_observers, notify_watch_observers, EventType},
+  event_observe::{collect_watch_observers, notify_watch_observers},
   mouse_events::mouse_handler,
   results_command_exec::listen_results_execute_command,
 };

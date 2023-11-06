@@ -1,5 +1,5 @@
-use super::event_observe::EventType;
 use super::global_context::MainProcessState;
+use crate::ipc_tcp::EventType;
 use crate::sequence_automata::AutomataInstruction;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Mutex;

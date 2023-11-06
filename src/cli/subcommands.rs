@@ -2,7 +2,7 @@ use std::io::{BufReader, Read, Write};
 use std::net::TcpStream;
 
 use crate::constants::DEFAULT_COMMAND_CONFIG_FILE_CONTENT;
-use crate::util::effectful_format_bytes_merge_newlines;
+use crate::ipc_tcp::{EventType, TcpAction, TcpActionResult};
 use crate::{
   api_client::{self},
   cmd::Cmd,
@@ -58,38 +58,109 @@ fn format_commands(commands_text: &str) -> String {
     .join("\n")
 }
 
-fn print_from_buf_reader<R, W>(mut buf: BufReader<R>, mut out: W)
+fn newline_or_flush<W: Write>(
+  event_type: EventType,
+  out: &mut W,
+  last_is_newline: &mut bool,
+) -> Result<()> {
+  if matches!(event_type, EventType::SequenceItem(_)) {
+    out.flush()?;
+    *last_is_newline = false;
+  } else if !*last_is_newline {
+    writeln!(out)?;
+    *last_is_newline = true;
+  }
+
+  Ok(())
+}
+
+fn watch_sequences_print_formatted<R, W>(mut buf: BufReader<R>, mut out: W) -> Result<()>
 where
   R: Read,
   W: Write,
 {
-  let mut last_char = b'\n';
-  let mut result = [0; 30];
+  let mut last_is_newline = true;
 
-  loop {
-    let n_read = buf.read(&mut result).unwrap();
-    if n_read == 0 {
-      break;
+  while let Ok(event_type) = bincode::deserialize_from(&mut buf) {
+    match event_type {
+      EventType::FoundResults => write!(out, "{}", " * Match found".yellow())?,
+      EventType::SequenceItem(c) => write!(out, "{c}")?,
+      EventType::SequenceReset => {}
     }
 
-    let content_to_print = effectful_format_bytes_merge_newlines(&mut result, n_read, last_char);
+    newline_or_flush(event_type, &mut out, &mut last_is_newline)?;
+  }
 
-    if !content_to_print.is_empty() {
-      out.write_all(content_to_print).unwrap();
-      out.flush().unwrap();
-      last_char = *content_to_print.last().unwrap();
-    }
+  Ok(())
+}
+
+fn connect_tcp(tcp_port: u16, action: TcpAction) -> Result<TcpStream> {
+  let mut stream = TcpStream::connect(format!("localhost:{tcp_port}"))?;
+
+  stream.write_all(&bincode::serialize(&action)?)?;
+
+  let tcp_action_result = bincode::deserialize_from(&stream)?;
+
+  if matches!(tcp_action_result, TcpActionResult::Ok) {
+    Ok(stream)
+  } else {
+    anyhow::bail!("Incorrect TCP action");
   }
 }
 
 pub fn watch_sequences_subcommand(port: u16) -> Result<String> {
   let tcp_port = api_client::get_tcp_port(port)?;
-  let stream = TcpStream::connect(format!("localhost:{tcp_port}"))?;
-  print_from_buf_reader(BufReader::new(stream), std::io::stdout());
+  let stream = connect_tcp(tcp_port, TcpAction::Watch)?;
+  stream.shutdown(std::net::Shutdown::Write)?;
+  watch_sequences_print_formatted(BufReader::new(stream), std::io::stdout())?;
   anyhow::bail!("Stopped getting data");
 }
 
 pub fn send_sequence_subcommand(port: u16, sequence: &str) -> Result<String> {
   api_client::send_sequence(port, sequence)?;
   Ok(String::new())
+}
+
+#[cfg(test)]
+mod tests {
+  use std::io::Cursor;
+
+  use super::*;
+  use test_case::test_case;
+
+  fn found() -> String {
+    " * Match found".yellow().to_string()
+  }
+
+  fn events_to_bytes(event_string: &str) -> Vec<u8> {
+    event_string
+      .chars()
+      .map(|c| match c {
+        'F' => EventType::FoundResults,
+        'R' => EventType::SequenceReset,
+        item => EventType::SequenceItem(item),
+      })
+      .flat_map(|ev| bincode::serialize(&ev).unwrap())
+      .collect()
+  }
+
+  #[test_case("R..-..-F..-..-FR", &format!("..-..-{}\n..-..-{}\n", found(), found()))]
+  #[test_case("R..-..-F..-..-R", &format!("..-..-{}\n..-..-\n", found()))]
+  #[test_case("RRRRRRRRRRRRR", "")]
+  #[test_case("RRRRRRRRR..-.RRR.-R.-RRRR.", "..-.\n.-\n.-\n.")]
+  #[test_case("RRRRRRRRR..-.RRR.-R.-RRRR.RRRR", "..-.\n.-\n.-\n.\n")]
+  #[test_case("R..FRR--F", &format!("..{}\n--{}\n", found(), found()))]
+  #[test_case("R..FRR--FR", &format!("..{}\n--{}\n", found(), found()))]
+  fn test_watch_sequences_print_formatted(event_string: &str, expected: &str) {
+    let read = BufReader::new(Cursor::new(events_to_bytes(event_string)));
+
+    let mut write = vec![];
+
+    watch_sequences_print_formatted(read, &mut write).unwrap();
+
+    let result = String::from_utf8_lossy(&write);
+    assert!(!result.contains("\n\n"));
+    assert!(!result.starts_with('\n'));
+    assert_eq!(result, expected);
+  }
 }
