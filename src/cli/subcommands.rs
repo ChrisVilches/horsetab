@@ -1,14 +1,13 @@
-use std::io::{BufReader, Read, Write};
-use std::net::TcpStream;
-
 use crate::constants::DEFAULT_COMMAND_CONFIG_FILE_CONTENT;
-use crate::ipc_tcp::{EventType, TcpAction, TcpActionResult};
+use crate::event_observe::EventType;
+use crate::ipc_tcp::{connect_tcp, TcpAction};
 use crate::{
   api_client::{self},
   cmd::Cmd,
 };
 use anyhow::Result;
 use colored::Colorize;
+use std::io::{BufReader, Read, Write};
 
 pub fn show_subcommand(port: u16, raw: bool) -> Result<String> {
   let current_config = api_client::get_current_installed_commands(port);
@@ -92,20 +91,6 @@ where
   }
 
   Ok(())
-}
-
-fn connect_tcp(tcp_port: u16, action: TcpAction) -> Result<TcpStream> {
-  let mut stream = TcpStream::connect(format!("localhost:{tcp_port}"))?;
-
-  stream.write_all(&bincode::serialize(&action)?)?;
-
-  let tcp_action_result = bincode::deserialize_from(&stream)?;
-
-  if matches!(tcp_action_result, TcpActionResult::Ok) {
-    Ok(stream)
-  } else {
-    anyhow::bail!("Incorrect TCP action");
-  }
 }
 
 pub fn watch_sequences_subcommand(port: u16) -> Result<String> {

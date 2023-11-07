@@ -56,7 +56,8 @@ impl Deref for PayloadOverwriter {
 
 #[cfg(test)]
 mod tests {
-  use crate::ipc_tcp::EventType;
+
+  use crate::event_observe::EventType;
 
   use super::*;
 

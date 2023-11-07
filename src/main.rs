@@ -16,6 +16,7 @@ mod cli;
 mod click_sequence_detector;
 mod cmd;
 mod constants;
+mod event_observe;
 mod ipc_tcp;
 mod logger;
 mod sequence_automata;

@@ -5,7 +5,8 @@ use std::{
 };
 
 use crate::{
-  ipc_tcp::EventType,
+  event_observe::{notify_watch_observers, EventType},
+  ipc_tcp::start_tcp_server,
   server::{
     global_context::MainProcessState,
     global_context_installer::{install_state_from_file, InstallResult},
@@ -14,9 +15,7 @@ use crate::{
 };
 
 use super::{
-  automata_manager::manage_automata,
-  event_observe::{collect_watch_observers, notify_watch_observers},
-  mouse_events::mouse_handler,
+  automata_manager::manage_automata, mouse_events::mouse_handler,
   results_command_exec::listen_results_execute_command,
 };
 
@@ -46,7 +45,7 @@ pub fn start(port: u16, config_path: &str, interpreter: &str) {
 
   let main_process_state = Arc::new(Mutex::new(state));
 
-  let (events_sender, events_receiver) = mpsc::channel::<EventType>();
+  let (events_sender, events_rec) = mpsc::channel::<EventType>();
 
   let observers: Mutex<HashMap<u16, TcpStream>> = Mutex::new(HashMap::new());
 
@@ -54,9 +53,8 @@ pub fn start(port: u16, config_path: &str, interpreter: &str) {
 
   std::thread::scope(|scope| {
     scope.spawn(|| listen_results_execute_command(results_rec, &main_process_state));
-
-    scope.spawn(|| notify_watch_observers(events_receiver, &observers));
-    scope.spawn(|| collect_watch_observers(&tcp_listener, &observers));
+    scope.spawn(|| notify_watch_observers(events_rec.into_iter(), &observers));
+    scope.spawn(|| start_tcp_server(&tcp_listener, &observers));
 
     scope.spawn(|| {
       manage_automata(

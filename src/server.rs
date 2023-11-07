@@ -1,6 +1,5 @@
 mod automata_manager;
 mod config_file_parser;
-mod event_observe;
 mod global_context;
 mod global_context_installer;
 mod http;
