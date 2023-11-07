@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::{
   collections::HashMap,
+  io::{Read, Write},
   net::{TcpListener, TcpStream},
   sync::Mutex,
 };
@@ -45,7 +46,7 @@ pub fn connect_tcp(tcp_port: u16, action: TcpAction) -> Result<TcpStream> {
   }
 }
 
-pub fn handle_tcp_action(mut stream: &mut TcpStream) -> anyhow::Result<TcpAction> {
+fn handle_tcp_action<S: Write + Read>(mut stream: &mut S) -> anyhow::Result<TcpAction> {
   let tcp_action = bincode::deserialize_from(&mut stream).with_context(|| INCORRECT_TCP_ACTION_ERR);
   let tcp_action_result = TcpActionResult::from(tcp_action.is_ok());
   bincode::serialize_into(stream, &tcp_action_result)?;
@@ -63,5 +64,33 @@ pub fn start_tcp_server(tcp_listener: &TcpListener, observers: &Mutex<HashMap<u1
         eprintln!("TCP error: {e}");
       }
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::collections::VecDeque;
+
+  #[test]
+  fn test_handle_tcp_action_watch() {
+    let mut stream = VecDeque::new();
+    bincode::serialize_into(&mut stream, &TcpAction::Watch).unwrap();
+    let action = handle_tcp_action(&mut stream).unwrap();
+    let result = bincode::deserialize_from(&mut stream).unwrap();
+    assert!(matches!(result, TcpActionResult::Ok));
+    assert!(matches!(action, TcpAction::Watch));
+  }
+
+  #[test]
+  fn test_handle_tcp_action_wrong() {
+    let mut stream = VecDeque::new();
+    bincode::serialize_into(&mut stream, &TcpAction::Watch).unwrap();
+    stream[0] += 0x10;
+    stream[1] += 0x01;
+    let action = handle_tcp_action(&mut stream);
+    let result = bincode::deserialize_from(&mut stream).unwrap();
+    assert!(matches!(result, TcpActionResult::Wrong));
+    assert_eq!(action.err().unwrap().to_string(), "Incorrect TCP action");
   }
 }
