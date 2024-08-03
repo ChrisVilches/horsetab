@@ -48,5 +48,6 @@ pub fn mouse_handler(seq_sender: Sender<AutomataInstruction>) {
 
   if let Err(error) = listen_result {
     eprintln!("Device error: {error:?}");
+    std::process::exit(1);
   }
 }
